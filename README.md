@@ -1,6 +1,6 @@
 # Chessproject
 # Chess AI
-
+I am using the AI chess by someone..
 A Python chess game built with Pygame.
 
 ## Requirements
