@@ -128,7 +128,6 @@ main = Main()
 menu = Menu(main.screen)
 mode = menu.show()   # 'pvp' or 'ai'
 main.mainloop(mode)
-```
 
 ---
 
