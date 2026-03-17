@@ -4,6 +4,7 @@ from const import *
 from Game import Game
 from Square import Square
 from Move import Move
+from Menu import Menu
 from ai import get_best_move
 
 
@@ -15,15 +16,13 @@ class Main:
         pygame.display.set_caption('Chess')
         self.game = Game()
 
-    def mainloop(self):
-
+    def mainloop(self, mode):
         screen = self.screen
         game = self.game
         board = self.game.board
         dragger = self.game.dragger
 
         while True:
-            # show methods
             game.show_bg(screen)
             game.show_last_move(screen)
             game.show_moves(screen)
@@ -35,7 +34,6 @@ class Main:
 
             for event in pygame.event.get():
 
-                # click
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     dragger.update_mouse(event.pos)
                     clicked_row = dragger.mouseY // SQSIZE
@@ -52,7 +50,6 @@ class Main:
                             game.show_moves(screen)
                             game.show_pieces(screen)
 
-                # mouse motion
                 elif event.type == pygame.MOUSEMOTION:
                     motion_row = event.pos[1] // SQSIZE
                     motion_col = event.pos[0] // SQSIZE
@@ -67,9 +64,7 @@ class Main:
                         game.show_hover(screen)
                         dragger.update_blit(screen)
 
-                # click release
                 elif event.type == pygame.MOUSEBUTTONUP:
-
                     if dragger.dragging:
                         dragger.update_mouse(event.pos)
                         released_row = dragger.mouseY // SQSIZE
@@ -89,8 +84,8 @@ class Main:
                             game.show_pieces(screen)
                             game.next_turn()
 
-                            # AI move (black)
-                            if game.next_player == 'black':
+                            # AI move only in Player vs AI mode
+                            if mode == 'ai' and game.next_player == 'black':
                                 result = get_best_move(board, depth=3)
                                 if result:
                                     ai_piece, ai_move = result
@@ -109,17 +104,18 @@ class Main:
 
                     dragger.undrag_piece()
 
-                # key press
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_t:
                         game.change_theme()
                     if event.key == pygame.K_r:
+                        # Reset and go back to menu
                         game.reset()
                         game = self.game
                         board = self.game.board
                         dragger = self.game.dragger
+                        menu = Menu(screen)
+                        mode = menu.show()
 
-                # quit
                 elif event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
@@ -127,5 +123,20 @@ class Main:
             pygame.display.update()
 
 
+# Launch
 main = Main()
-main.mainloop()
+menu = Menu(main.screen)
+mode = menu.show()   # 'pvp' or 'ai'
+main.mainloop(mode)
+```
+
+---
+
+## How It Works
+
+When you run the game you will see a menu like this:
+```
+         CHESS
+
+   1. Player vs Player
+   2. Player vs AI
