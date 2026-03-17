@@ -1,3 +1,4 @@
+cat > /workspaces/Chessproject/Chessproject/src/main.py << 'EOF'
 import pygame
 import sys
 from const import *
