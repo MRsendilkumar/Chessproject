@@ -1,4 +1,4 @@
-cat > /workspaces/Chessproject/Chessproject/src/main.py << 'EOF'
+cat > src/main.py << 'ENDOFFILE'
 import pygame
 import sys
 from const import *
@@ -126,3 +126,4 @@ main = Main()
 menu = Menu(main.screen)
 mode = menu.show()
 main.mainloop(mode)
+ENDOFFILE
