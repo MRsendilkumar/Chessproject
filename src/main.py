@@ -84,7 +84,6 @@ class Main:
                             game.show_pieces(screen)
                             game.next_turn()
 
-                            # AI move only in Player vs AI mode
                             if mode == 'ai' and game.next_player == 'black':
                                 result = get_best_move(board, depth=3)
                                 if result:
@@ -108,7 +107,6 @@ class Main:
                     if event.key == pygame.K_t:
                         game.change_theme()
                     if event.key == pygame.K_r:
-                        # Reset and go back to menu
                         game.reset()
                         game = self.game
                         board = self.game.board
@@ -123,19 +121,7 @@ class Main:
             pygame.display.update()
 
 
-# Launch
 main = Main()
 menu = Menu(main.screen)
-mode = menu.show()   # 'pvp' or 'ai'
+mode = menu.show()
 main.mainloop(mode)
-
----
-
-## How It Works
-
-When you run the game you will see a menu like this:
-```
-         CHESS
-
-   1. Player vs Player
-   2. Player vs AI
