@@ -1,4 +1,3 @@
-cat > src/main.py << 'ENDOFFILE'
 import pygame
 import sys
 from const import *
@@ -14,7 +13,7 @@ class Main:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('Chess')
+        pygame.display.set_caption("Chess")
         self.game = Game()
 
     def mainloop(self, mode):
@@ -85,7 +84,7 @@ class Main:
                             game.show_pieces(screen)
                             game.next_turn()
 
-                            if mode == 'ai' and game.next_player == 'black':
+                            if mode == "ai" and game.next_player == "black":
                                 result = get_best_move(board, depth=3)
                                 if result:
                                     ai_piece, ai_move = result
@@ -126,4 +125,3 @@ main = Main()
 menu = Menu(main.screen)
 mode = menu.show()
 main.mainloop(mode)
-ENDOFFILE
