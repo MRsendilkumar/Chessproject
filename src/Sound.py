@@ -1,6 +1,4 @@
-python3 -c "
-f = open('src/Sound.py', 'w')
-f.write('''import pygame
+import pygame
 
 class Sound:
 
@@ -18,7 +16,3 @@ class Sound:
                 pygame.mixer.Sound.play(self.sound)
         except Exception:
             pass
-''')
-f.close()
-print('Fixed!')
-"
