@@ -2,7 +2,7 @@ import copy
 import os
 from const import *
 from Square import Square
-from Piece import *
+from Piece import Pawn, Knight, Bishop, Rook, Queen, King
 from Move import Move
 from Sound import Sound
 
@@ -78,6 +78,28 @@ class Board:
                         if isinstance(m.final.piece, King):
                             return True
         return False
+
+    def load_fen(self, fen):
+        rows = fen.split()[0].split('/')
+        for r in range(8):
+            c = 0
+            for char in rows[r]:
+                if char.isdigit():
+                    c += int(char)
+                else:
+                    piece = self._create_piece_from_fen(char)
+                    self.squares[r][c].piece = piece
+                    c += 1
+
+    def _create_piece_from_fen(self, char):
+        color = 'white' if char.isupper() else 'black'
+        char = char.lower()
+        if char == 'p': return Pawn(color)
+        if char == 'n': return Knight(color)
+        if char == 'b': return Bishop(color)
+        if char == 'r': return Rook(color)
+        if char == 'q': return Queen(color)
+        if char == 'k': return King(color)
 
     def calc_moves(self, piece, row, col, bool=True):
 

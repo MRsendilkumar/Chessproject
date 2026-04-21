@@ -61,8 +61,11 @@ class Main:
             screen.fill((0, 0, 0))
             game.show_bg(screen)
             game.show_last_move(screen)
+
+            # Only show move hints when NOT in an active quiz
             if not quiz_active:
                 game.show_moves(screen)
+
             game.show_pieces(screen)
             game.show_hover(screen)
 
@@ -89,12 +92,17 @@ class Main:
 
                     if board.squares[clicked_row][clicked_col].has_piece():
                         piece = board.squares[clicked_row][clicked_col].piece
-                        if piece.color == game.next_player:
+                        # Allow picking up pieces only if it's the player's turn
+                        # (always white for player). During quiz, still allow
+                        # picking up so the player can make their answer move.
+                        if piece.color == game.next_player and piece.color == 'white':
                             board.calc_moves(piece, clicked_row, clicked_col, bool=True)
                             dragger.save_initial(event.pos)
                             dragger.drag_piece(piece)
                             game.show_bg(screen)
                             game.show_last_move(screen)
+                            # Show available moves even during quiz so player
+                            # can see where they can move
                             game.show_moves(screen)
                             game.show_pieces(screen)
 
@@ -122,12 +130,15 @@ class Main:
                         move = Move(initial, final)
 
                         if board.valid_move(dragger.piece, move):
-
+                            # --- PUZZLE QUIZ ANSWER CHECK ---
                             if quiz_active and puzzle_mode and quiz_best_move:
-                                if (move.initial.row == quiz_best_move.initial.row and
+                                player_matched = (
+                                    move.initial.row == quiz_best_move.initial.row and
                                     move.initial.col == quiz_best_move.initial.col and
                                     move.final.row == quiz_best_move.final.row and
-                                    move.final.col == quiz_best_move.final.col):
+                                    move.final.col == quiz_best_move.final.col
+                                )
+                                if player_matched:
                                     quiz_message = 'Perfect! That was the best move!'
                                     quiz_color = (0, 220, 0)
                                 else:
@@ -135,8 +146,17 @@ class Main:
                                     quiz_color = (255, 150, 0)
                                 quiz_timer = 180
                                 quiz_active = False
+                                quiz_best_move = None
+                                moves_since_quiz = 0
+                                # Fall through: execute the move the player chose
+
+                            elif quiz_active and puzzle_mode:
+                                # Quiz is active but we have no best move stored
+                                # (shouldn't normally happen); just clear the quiz
+                                quiz_active = False
                                 moves_since_quiz = 0
 
+                            # --- EXECUTE PLAYER MOVE ---
                             score_before = evaluate(board)
                             captured = board.squares[released_row][released_col].has_piece()
                             board.move(dragger.piece, move)
@@ -153,6 +173,7 @@ class Main:
                             game.next_turn()
                             moves_since_quiz += 1
 
+                            # --- AI RESPONSE MOVE ---
                             if game.next_player == 'black':
                                 await asyncio.sleep(0.3)
                                 if difficulty == 'easy':
@@ -174,18 +195,24 @@ class Main:
                                     game.show_last_move(screen)
                                     game.show_pieces(screen)
                                     game.next_turn()
+                                    moves_since_quiz += 1  # Count AI move too so quiz fires every 3 *full* move pairs
 
-                            if puzzle_mode and moves_since_quiz >= quiz_interval and not quiz_active:
+                            # --- CHECK IF WE SHOULD TRIGGER A PUZZLE ---
+                            # Only trigger when: puzzle mode on, no quiz already
+                            # active, and enough moves have passed.
+                            if puzzle_mode and not quiz_active and moves_since_quiz >= quiz_interval:
                                 result = get_best_move(board, depth=2)
                                 if result:
                                     _, quiz_best_move = result
                                     quiz_active = True
+                                    moves_since_quiz = 0  # Reset BEFORE quiz, not after
 
                     dragger.undrag_piece()
 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_s and quiz_active:
                         quiz_active = False
+                        quiz_best_move = None
                         quiz_message = 'Skipped! Keep playing.'
                         quiz_color = (150, 150, 255)
                         quiz_timer = 150
@@ -201,6 +228,7 @@ class Main:
                         dragger = self.game.dragger
                         feedback = Feedback()
                         quiz_active = False
+                        quiz_best_move = None
                         moves_since_quiz = 0
 
                     if event.key == pygame.K_m:
