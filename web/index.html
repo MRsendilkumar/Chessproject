@@ -59,11 +59,13 @@
     width: var(--sq); height: var(--sq);
     display: flex; align-items: center; justify-content: center;
     font-size: 40px; cursor: pointer; position: relative; user-select: none;
+    transition: background 0.1s;
   }
   .sq.light { background: var(--light-sq); }
   .sq.dark  { background: var(--dark-sq); }
   .sq.selected { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 2; }
   .sq.last-move { background: rgba(201,168,76,0.32) !important; }
+  .sq.hint { background: rgba(201,168,76,0.55) !important; }
 
   .panel { width: 260px; display: flex; flex-direction: column; gap: 14px; }
   .card  { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 16px; }
@@ -147,7 +149,9 @@
 
   <div class="panel">
     <div id="conn-banner">
-      ⚠ Cannot reach backend.<br>Run: <code style="color:#e8e0d0">python app.py</code>
+      ⚠ Cannot reach backend.<br>
+      Make sure your Render service is running.<br>
+      <span style="color:var(--muted);font-size:0.65rem">Check API_BASE in the HTML file.</span>
     </div>
 
     <div id="puzzle-banner">
@@ -208,14 +212,16 @@
 </div>
 
 <script>
-// ── Config ────────────────────────────────────────────
-// If you deploy to Render / Railway etc., change this to your live URL.
-const API_BASE = 'https://humble-guacamole-v6px5wqqgj9jhp6jv-5000.app.github.dev/';
+// ── Config ─────────────────────────────────────────────────────────────────
+// After deploying to Render, replace this with your Render service URL.
+// Example: 'https://chessproject.onrender.com'
+// Leave NO trailing slash.
+const API_BASE = 'https://YOUR-APP-NAME.onrender.com';
 
-// ── State ─────────────────────────────────────────────
+// ── State ───────────────────────────────────────────────────────────────────
 let fen = '';
 let turn = 'white';
-let selected = null;   // [row, col]
+let selected = null;
 let aiThinking = false;
 let gameMode = 'normal';
 let aiDepth  = 2;
@@ -224,17 +230,19 @@ let puzzleActive = false;
 let puzzleUCI = null;
 let logNum = 1;
 let lastUCI = null;
-const PUZZLE_EVERY = 3; // half-moves
+const PUZZLE_EVERY = 3;
 
-// ── FEN rendering ─────────────────────────────────────
+// ── Piece glyphs ────────────────────────────────────────────────────────────
 const GLYPHS = {
   P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',
   p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'
 };
 
+// ── FEN helpers ─────────────────────────────────────────────────────────────
 function fenGrid(f) {
+  const rows = f.split(' ')[0].split('/');
   const g = Array(8).fill(0).map(()=>Array(8).fill(null));
-  f.split('/').forEach((row,r)=>{
+  rows.forEach((row,r)=>{
     let c=0;
     for (const ch of row) {
       if (/\d/.test(ch)) c+=+ch;
@@ -254,23 +262,25 @@ function toUCI(fr,fc,tr,tc) {
   return `${f[fc]}${8-fr}${f[tc]}${8-tr}`;
 }
 
-// ── API helper ────────────────────────────────────────
+// ── API helper ──────────────────────────────────────────────────────────────
 async function api(path, body) {
   try {
-    const r = await fetch(API_BASE+path, {
-      method: body!==undefined ? 'POST' : 'GET',
+    const r = await fetch(API_BASE + path, {
+      method: body !== undefined ? 'POST' : 'GET',
       headers: {'Content-Type':'application/json'},
-      body: body!==undefined ? JSON.stringify(body) : undefined
+      body: body !== undefined ? JSON.stringify(body) : undefined
     });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     document.getElementById('conn-banner').classList.remove('show');
     return await r.json();
-  } catch {
+  } catch(e) {
+    console.error('API error:', e);
     document.getElementById('conn-banner').classList.add('show');
     return null;
   }
 }
 
-// ── Render board ──────────────────────────────────────
+// ── Render board ────────────────────────────────────────────────────────────
 function renderBoard() {
   const el = document.getElementById('board');
   el.innerHTML = '';
@@ -285,14 +295,14 @@ function renderBoard() {
 
   for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
     const sq = document.createElement('div');
-    sq.className = 'sq '+((r+c)%2===0?'light':'dark');
+    sq.className = 'sq ' + ((r+c)%2===0 ? 'light' : 'dark');
     if (lf && lf[0]===r && lf[1]===c) sq.classList.add('last-move');
     if (lt && lt[0]===r && lt[1]===c) sq.classList.add('last-move');
     if (selected && selected[0]===r && selected[1]===c) sq.classList.add('selected');
 
     const p = grid[r][c];
     if (p) {
-      sq.textContent = GLYPHS[p]||'';
+      sq.textContent = GLYPHS[p] || '';
       sq.style.color = p===p.toUpperCase() ? '#fff' : '#111';
       sq.style.textShadow = p===p.toUpperCase()
         ? '0 1px 4px rgba(0,0,0,0.95)'
@@ -303,25 +313,21 @@ function renderBoard() {
   }
 }
 
-// ── Square click ──────────────────────────────────────
+// ── Square click ────────────────────────────────────────────────────────────
 function onSqClick(r, c) {
   if (aiThinking || turn !== 'white') return;
 
   const grid = fenGrid(fen);
   const p = grid[r][c];
-  const isWhite = p && p===p.toUpperCase();
+  const isWhite = p && p === p.toUpperCase();
 
   if (selected) {
     const [sr,sc] = selected;
-
     if (sr===r && sc===c) { selected=null; renderBoard(); return; }
-
-    // Re-select another white piece
     if (isWhite) { selected=[r,c]; renderBoard(); return; }
 
     const uci = toUCI(sr,sc,r,c);
 
-    // Puzzle answer check
     if (puzzleActive && puzzleUCI) {
       const correct = uci === puzzleUCI;
       setFeedback(
@@ -342,7 +348,7 @@ function onSqClick(r, c) {
   if (isWhite) { selected=[r,c]; renderBoard(); }
 }
 
-// ── Player move ───────────────────────────────────────
+// ── Player move ─────────────────────────────────────────────────────────────
 async function doPlayerMove(uci) {
   const data = await api('/player-move', {move: uci});
   if (!data) return;
@@ -359,20 +365,18 @@ async function doPlayerMove(uci) {
   appendLog(uci, 'w');
   renderBoard();
 
-  if (data.checkmate) { showGameOver('You win!','Checkmate'); return; }
-  if (data.stalemate) { showGameOver('Draw','Stalemate'); return; }
-  if (data.check) setFeedback('Check!','bad');
+  if (data.checkmate) { showGameOver('You win!', 'Checkmate'); return; }
+  if (data.stalemate) { showGameOver('Draw', 'Stalemate'); return; }
+  if (data.check) setFeedback('Check!', 'bad');
 
-  // Puzzle trigger
   if (gameMode==='puzzle' && !puzzleActive && movesSincePuzzle>=PUZZLE_EVERY) {
-    await triggerPuzzle();
-    return; // hold: wait for player to answer before AI moves
+    await triggerPuzzle(); return;
   }
 
   await doAIMove();
 }
 
-// ── AI move ───────────────────────────────────────────
+// ── AI move ─────────────────────────────────────────────────────────────────
 async function doAIMove() {
   aiThinking=true; showThinking(true); setStatus('AI thinking…');
 
@@ -389,17 +393,17 @@ async function doAIMove() {
   renderBoard();
   setStatus('White to move');
 
-  if (data.checkmate) { showGameOver('AI wins!','Checkmate'); return; }
-  if (data.stalemate) { showGameOver('Draw','Stalemate'); return; }
-  if (data.check) setFeedback('You are in check!','bad');
-  else if (gameMode!=='puzzle') setFeedback('Your turn','info');
+  if (data.checkmate) { showGameOver('AI wins!', 'Checkmate'); return; }
+  if (data.stalemate) { showGameOver('Draw', 'Stalemate'); return; }
+  if (data.check) setFeedback('You are in check!', 'bad');
+  else if (gameMode !== 'puzzle') setFeedback('Your turn', 'info');
 
   if (gameMode==='puzzle' && !puzzleActive && movesSincePuzzle>=PUZZLE_EVERY) {
     await triggerPuzzle();
   }
 }
 
-// ── Puzzle ────────────────────────────────────────────
+// ── Puzzle ───────────────────────────────────────────────────────────────────
 async function triggerPuzzle() {
   const data = await api('/best-move', {depth:2});
   if (!data || data.status!=='ok') { await doAIMove(); return; }
@@ -408,17 +412,17 @@ async function triggerPuzzle() {
   movesSincePuzzle = 0;
   document.getElementById('puzzle-banner').classList.add('active');
   setStatus('Find the best move!');
-  setFeedback('Analyse the position carefully…','info');
+  setFeedback('Analyse the position carefully…', 'info');
 }
 
 async function skipPuzzle() {
   puzzleActive=false; puzzleUCI=null; movesSincePuzzle=0;
   document.getElementById('puzzle-banner').classList.remove('active');
-  setFeedback('Skipped — keep playing','info');
+  setFeedback('Skipped — keep playing', 'info');
   await doAIMove();
 }
 
-// ── New game ──────────────────────────────────────────
+// ── New game ─────────────────────────────────────────────────────────────────
 async function newGame() {
   const data = await api('/new-game', {});
   if (!data) return;
@@ -428,13 +432,13 @@ async function newGame() {
   document.getElementById('gameover').classList.remove('show');
   document.getElementById('puzzle-banner').classList.remove('active');
   document.getElementById('move-log').innerHTML='';
-  setFeedback('Make your first move','info');
+  setFeedback('Make your first move', 'info');
   setStatus('White to move');
   showThinking(false);
   renderBoard();
 }
 
-// ── Move log ──────────────────────────────────────────
+// ── Move log ─────────────────────────────────────────────────────────────────
 function appendLog(uci, side) {
   const log = document.getElementById('move-log');
   if (side==='w') {
@@ -448,10 +452,10 @@ function appendLog(uci, side) {
   log.scrollTop=log.scrollHeight;
 }
 
-// ── Helpers ───────────────────────────────────────────
-function setStatus(t)       { document.getElementById('status-text').textContent=t; }
-function showThinking(v)    { document.getElementById('thinking').classList.toggle('show',v); }
-function showGameOver(t,s)  {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(t)      { document.getElementById('status-text').textContent=t; }
+function showThinking(v)   { document.getElementById('thinking').classList.toggle('show',v); }
+function showGameOver(t,s) {
   document.getElementById('go-title').textContent=t;
   document.getElementById('go-sub').textContent=s;
   document.getElementById('gameover').classList.add('show');
@@ -472,14 +476,20 @@ function setDiff(d,name) {
   newGame();
 }
 
-// ── Coordinates ───────────────────────────────────────
+// ── Coordinates ───────────────────────────────────────────────────────────────
 function buildCoords() {
-  const ft=document.getElementById('files-top'),fb=document.getElementById('files-bot'),rl=document.getElementById('ranks-left');
-  'abcdefgh'.split('').forEach(f=>[ft,fb].forEach(el=>{ const s=document.createElement('span'); s.textContent=f; el.appendChild(s); }));
-  for (let r=1;r<=8;r++) { const s=document.createElement('span'); s.textContent=9-r; rl.appendChild(s); }
+  const ft=document.getElementById('files-top'),
+        fb=document.getElementById('files-bot'),
+        rl=document.getElementById('ranks-left');
+  'abcdefgh'.split('').forEach(f=>[ft,fb].forEach(el=>{
+    const s=document.createElement('span'); s.textContent=f; el.appendChild(s);
+  }));
+  for (let r=1;r<=8;r++) {
+    const s=document.createElement('span'); s.textContent=9-r; rl.appendChild(s);
+  }
 }
 
-// ── Keyboard ──────────────────────────────────────────
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e=>{
   if ((e.key==='s'||e.key==='S') && puzzleActive) skipPuzzle();
   if (e.key==='r'||e.key==='R') newGame();
