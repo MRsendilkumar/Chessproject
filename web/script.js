@@ -1,36 +1,14 @@
+const API_BASE = 'https://chessproject.onrender.com/API';
 
-<script>
-const API_BASE = 'https://chessproject.onrender.com';
-
-const boardEl = document.getElementById('board');
-const statusEl = document.getElementById('status');
-
-let selected = null;
-fetch("http://127.0.0.1:5000/board")
-  .then(res => res.json())
-  .then(data => {
-    console.log(data);
-    drawBoard(data);
-  });
-
-// create board UI
-function createBoard() {
-  boardEl.innerHTML = '';
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const sq = document.createElement('div');
-      sq.className = 'square ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
-      sq.dataset.row = r;
-      sq.dataset.col = c;
-      sq.onclick = onClick;
-      boardEl.appendChild(sq);
-    }
-  }
+async function loadBoard() {
+  const res = await fetch(API_BASE + "/board");
+  const data = await res.json();
+  drawBoard(data);
 }
 
 async function testBackend() {
   try {
-    const res = await fetch(API_BASE + "/");
+    const res = await fetch(API_BASE + "/board");
     if (!res.ok) throw "bad";
     statusEl.innerText = "✅ Connected";
   } catch {
@@ -45,6 +23,12 @@ async function onClick(e) {
   if (!selected) {
     selected = {row, col};
     e.target.style.outline = '3px solid red';
+    return;
+  }
+
+  if (selected.row === row && selected.col === col) {
+    selected = null;
+    e.target.style.outline = '';
     return;
   }
 
@@ -72,6 +56,7 @@ async function onClick(e) {
     }
 
     statusEl.innerText = "Move successful";
+    await loadBoard();
 
   } catch (err) {
     statusEl.innerText = "❌ Backend error";
@@ -80,4 +65,4 @@ async function onClick(e) {
 
 createBoard();
 testBackend();
-</script>
+loadBoard();
