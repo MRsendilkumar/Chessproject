@@ -1,0 +1,513 @@
+/* Chess Tutor Web App - Complete Stylesheet */
+/* ============================================ */
+
+/* CSS Variables */
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-board-light: #f0d9b5;
+    --bg-board-dark: #b58863;
+    --accent: #e94560;
+    --accent-hover: #ff6b6b;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --piece-white: #ffffff;
+    --piece-black: #1a1a1a;
+    --highlight-selected: rgba(233, 69, 96, 0.5);
+    --highlight-valid: rgba(100, 200, 100, 0.5);
+    --highlight-last-move: rgba(255, 255, 0, 0.4);
+    --highlight-check: rgba(255, 0, 0, 0.6);
+    --success: #4ecdc4;
+    --warning: #ffe66d;
+    --card-bg: #0f3460;
+    --border-radius: 12px;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --transition: all 0.3s ease;
+}
+
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    min-height: 100vh;
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Main Container */
+.container {
+    display: flex;
+    gap: 30px;
+    max-width: 1200px;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Chess Board */
+.board-container {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    border: 4px solid var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.square {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s;
+}
+
+.square:hover {
+    filter: brightness(1.1);
+}
+
+.square.light {
+    background-color: var(--bg-board-light);
+}
+
+.square.dark {
+    background-color: var(--bg-board-dark);
+}
+
+/* Piece Styling */
+.piece {
+    font-size: 48px;
+    line-height: 1;
+    user-select: none;
+    transition: transform 0.2s, opacity 0.2s;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.white-piece {
+    color: var(--piece-white);
+    text-shadow:
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.black-piece {
+    color: var(--piece-black);
+    text-shadow:
+        -1px -1px 0 rgba(255, 255, 255, 0.3),
+        1px -1px 0 rgba(255, 255, 255, 0.3),
+        -1px 1px 0 rgba(255, 255, 255, 0.3),
+        1px 1px 0 rgba(255, 255, 255, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Square Highlights */
+.square.selected {
+    background-color: var(--highlight-selected) !important;
+    box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+.square.valid-move::after {
+    content: '';
+    width: 20px;
+    height: 20px;
+    background-color: var(--highlight-valid);
+    border-radius: 50%;
+    position: absolute;
+    pointer-events: none;
+}
+
+.square.valid-move.has-piece::after {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: 4px solid var(--highlight-valid);
+    border-radius: 0;
+}
+
+.square.last-move-from,
+.square.last-move-to {
+    background-color: var(--highlight-last-move) !important;
+}
+
+.square.in-check {
+    background-color: var(--highlight-check) !important;
+    animation: checkPulse 1s infinite;
+}
+
+@keyframes checkPulse {
+    0%, 100% { background-color: var(--highlight-check); }
+    50% { background-color: rgba(255, 0, 0, 0.3); }
+}
+
+/* Piece Animation */
+.piece.animating {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    transition: transform 0.3s ease-out;
+}
+
+/* Side Panel */
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 320px;
+}
+
+/* Panel Card */
+.panel {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+}
+
+.panel-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Status Display */
+.status {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+}
+
+.status span {
+    color: var(--accent);
+}
+
+/* Feedback */
+.feedback {
+    font-size: 14px;
+    color: var(--text-primary);
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Timer Display */
+.timer-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.timer-box {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px 20px;
+    border-radius: 8px;
+    text-align: center;
+    flex: 1;
+    transition: all 0.3s;
+}
+
+.timer-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.timer-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--text-primary);
+}
+
+.timer-box.active-timer {
+    background: var(--accent);
+    box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+}
+
+.timer-box.active-timer .timer-value {
+    color: white;
+}
+
+/* Game Controls */
+.mode-buttons,
+.depth-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+button.active {
+    background: var(--accent);
+    color: white;
+}
+
+button.primary {
+    background: var(--accent);
+    color: white;
+}
+
+button.primary:hover {
+    background: var(--accent-hover);
+}
+
+#new-game-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+/* Puzzle Mode */
+#puzzle-hint {
+    display: none;
+    background: linear-gradient(135deg, var(--warning) 0%, #ffd93d 100%);
+    color: var(--bg-primary);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    text-align: center;
+}
+
+#puzzle-hint strong {
+    display: block;
+    margin-bottom: 10px;
+}
+
+#skip-btn {
+    background: var(--bg-primary);
+    color: var(--warning);
+    margin-top: 10px;
+}
+
+/* Move Log */
+.move-log {
+    max-height: 250px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--bg-secondary);
+}
+
+.move-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+.move-log::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.move-log::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+}
+
+.move-entry {
+    display: flex;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Courier New', monospace;
+}
+
+.move-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.move-number {
+    color: var(--text-secondary);
+    min-width: 40px;
+}
+
+.white-move,
+.black-move {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.black-move {
+    color: var(--text-secondary);
+}
+
+/* Game Over Modal */
+#game-over-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: var(--accent);
+}
+
+.result {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: var(--success);
+}
+
+.modal-content button {
+    padding: 15px 40px;
+    font-size: 18px;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .side-panel {
+        width: 100%;
+        max-width: 500px;
+    }
+
+    #board {
+        grid-template-columns: repeat(8, 50px);
+        grid-template-rows: repeat(8, 50px);
+    }
+
+    .square {
+        width: 50px;
+        height: 50px;
+    }
+
+    .piece {
+        font-size: 40px;
+    }
+}
+
+@media (max-width: 500px) {
+    #board {
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+    }
+
+    .square {
+        width: 40px;
+        height: 40px;
+    }
+
+    .piece {
+        font-size: 32px;
+    }
+
+    .timer-value {
+        font-size: 22px;
+    }
+}
+
+/* Loading Animation */
+@keyframes loading {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.loading {
+    animation: loading 1s infinite;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    padding: 15px 25px;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    z-index: 3000;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.success {
+    border-left: 4px solid var(--success);
+}
+
+.toast.error {
+    border-left: 4px solid var(--accent);
+}
+
+/* Keyboard Shortcuts Hint */
+.shortcuts {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 10px;
+}
+
+.shortcuts kbd {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+}

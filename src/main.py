@@ -1,272 +1,505 @@
-import asyncio
-import pygame
-import sys
-import random
-from const import *
-from Game import Game
-from Square import Square
-from Move import Move
-from Menu import Menu
-from Feedback import Feedback
-from ai import get_best_move, evaluate
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Tutor</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --light-sq: #e8d5b0;
+    --dark-sq:  #8b5e3c;
+    --bg:       #0d0d0d;
+    --panel:    #141414;
+    --border:   #2a2a2a;
+    --accent:   #c9a84c;
+    --accent2:  #7fb3d3;
+    --text:     #e8e0d0;
+    --muted:    #6b6560;
+    --good:     #5cb85c;
+    --bad:      #d9534f;
+    --sq: 68px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--accent);
+  }
+  header p { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 4px; }
+  .app { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
 
+  .board-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .coord-row  { display: flex; width: calc(var(--sq)*8); justify-content: space-around; }
+  .coord-row span { width: var(--sq); text-align: center; font-size: 0.6rem; color: var(--muted); }
+  .board-and-ranks { display: flex; align-items: center; gap: 6px; }
+  .ranks { display: flex; flex-direction: column; height: calc(var(--sq)*8); justify-content: space-around; }
+  .ranks span { font-size: 0.6rem; color: var(--muted); text-align: right; width: 12px; }
 
-class Main:
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, var(--sq));
+    grid-template-rows: repeat(8, var(--sq));
+    border: 3px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  .sq {
+    width: var(--sq); height: var(--sq);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; cursor: pointer; position: relative; user-select: none;
+    transition: background 0.1s;
+  }
+  .sq.light { background: var(--light-sq); }
+  .sq.dark  { background: var(--dark-sq); }
+  .sq.selected { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 2; }
+  .sq.last-move { background: rgba(201,168,76,0.32) !important; }
+  .sq.hint { background: rgba(201,168,76,0.55) !important; }
 
-    def __init__(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('Chess Tutor')
-        self.game = Game()
+  .panel { width: 260px; display: flex; flex-direction: column; gap: 14px; }
+  .card  { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 16px; }
+  .card-title { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 10px; }
 
-    def get_ai_depth(self, difficulty):
-        if difficulty == 'easy':
-            return 1
-        elif difficulty == 'medium':
-            return 2
-        else:
-            return 4
+  #status-text  { font-family: 'Playfair Display', serif; font-size: 1rem; min-height: 1.4em; }
+  #feedback-text { font-size: 0.8rem; min-height: 1.2em; transition: color 0.3s; }
+  #feedback-text.good { color: var(--good); }
+  #feedback-text.bad  { color: var(--bad); }
+  #feedback-text.info { color: var(--accent2); }
 
-    def get_random_ai_move(self, board):
-        all_moves = []
-        for row in range(8):
-            for col in range(8):
-                if board.squares[row][col].has_piece():
-                    piece = board.squares[row][col].piece
-                    if piece.color == 'black':
-                        board.calc_moves(piece, row, col, bool=True)
-                        for move in piece.moves:
-                            all_moves.append((piece, move))
-        return random.choice(all_moves) if all_moves else None
+  #puzzle-banner {
+    display: none;
+    background: linear-gradient(135deg,#1a1200,#2a1f00);
+    border: 1px solid var(--accent);
+    border-radius: 4px; padding: 14px; text-align: center;
+  }
+  #puzzle-banner.active { display: block; }
+  #puzzle-banner .pb-title { font-family: 'Playfair Display', serif; font-size: 1rem; color: var(--accent); margin-bottom: 4px; }
+  #puzzle-banner .pb-sub  { font-size: 0.65rem; color: var(--muted); }
 
-    async def mainloop(self, mode, difficulty='medium'):
-        screen = self.screen
-        game = self.game
-        board = self.game.board
-        dragger = self.game.dragger
-        feedback = Feedback()
-        depth = self.get_ai_depth(difficulty)
+  #move-log { font-size: 0.72rem; color: var(--muted); max-height: 180px; overflow-y: auto; line-height: 1.9; }
+  .move-pair { display: flex; gap: 8px; }
+  .move-num  { color: var(--border); min-width: 22px; }
+  .move-w    { color: var(--text); min-width: 60px; }
 
-        puzzle_mode = (mode == 'puzzle')
-        quiz_active = False
-        quiz_best_move = None
-        quiz_message = ''
-        quiz_color = (255, 255, 255)
-        quiz_timer = 0
-        moves_since_quiz = 0
-        quiz_interval = 3
-        font = pygame.font.SysFont('monospace', 20, bold=True)
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 8px 14px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); border-radius: 3px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.active { background: var(--accent); color: #0d0d0d; border-color: var(--accent); font-weight: 600; }
+  .mode-row, .diff-row { display: flex; gap: 6px; }
+  .mode-btn, .diff-btn { flex: 1; text-align: center; font-size: 0.62rem; }
 
-        while True:
-            screen.fill((0, 0, 0))
-            game.show_bg(screen)
-            game.show_last_move(screen)
+  #thinking { display: none; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; margin-top: 6px; }
+  #thinking.show { display: block; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  #thinking span { animation: blink 1s ease-in-out infinite; }
 
-            # Only show move hints when NOT in an active quiz
-            if not quiz_active:
-                game.show_moves(screen)
+  #gameover { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
+  #gameover.show { display: flex; }
+  .go-box { background: var(--panel); border: 1px solid var(--accent); padding: 36px 48px; text-align: center; border-radius: 4px; }
+  .go-box h2 { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--accent); margin-bottom: 8px; }
+  .go-box p  { color: var(--muted); font-size: 0.75rem; margin-bottom: 20px; }
 
-            game.show_pieces(screen)
-            game.show_hover(screen)
+  #conn-banner {
+    display: none; background: #2a0a0a; border: 1px solid var(--bad);
+    border-radius: 4px; padding: 10px 14px; font-size: 0.7rem;
+    color: var(--bad); text-align: center;
+  }
+  #conn-banner.show { display: block; }
 
-            if not puzzle_mode:
-                feedback.show(screen)
+  @media (max-width: 700px) {
+    :root { --sq: 44px; }
+    header h1 { font-size: 1.6rem; }
+    .panel { width: 100%; max-width: calc(var(--sq)*8 + 18px); }
+  }
+</style>
+</head>
+<body>
 
-            if quiz_active:
-                self._draw_banner(screen, font,
-                    'PUZZLE: Find the best move!  S = skip')
+<header>
+  <h1>Chess Tutor</h1>
+  <p>Python AI · Puzzle Mode · Portfolio</p>
+</header>
 
-            if quiz_timer > 0:
-                self._draw_message(screen, font, quiz_message, quiz_color)
-                quiz_timer -= 1
+<div class="app">
+  <div class="board-wrap">
+    <div class="coord-row" id="files-top"></div>
+    <div class="board-and-ranks">
+      <div class="ranks" id="ranks-left"></div>
+      <div id="board"></div>
+    </div>
+    <div class="coord-row" id="files-bot"></div>
+  </div>
 
-            if dragger.dragging:
-                dragger.update_blit(screen)
+  <div class="panel">
+    <div id="conn-banner">
+      ⚠ Cannot reach backend.<br>
+      Make sure your Render service is running.<br>
+      <span style="color:var(--muted);font-size:0.65rem">Check API_BASE in the HTML file.</span>
+    </div>
 
-            for event in pygame.event.get():
+    <div id="puzzle-banner">
+      <div class="pb-title">♟ Find the Best Move!</div>
+      <div class="pb-sub">What would your Python AI play here?</div>
+      <div style="margin-top:10px">
+        <button onclick="skipPuzzle()" style="font-size:0.6rem;padding:5px 10px">Skip (S)</button>
+      </div>
+    </div>
 
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    dragger.update_mouse(event.pos)
-                    clicked_row = dragger.mouseY // SQSIZE
-                    clicked_col = dragger.mouseX // SQSIZE
+    <div class="card">
+      <div class="card-title">Status</div>
+      <div id="status-text">Loading…</div>
+      <div id="thinking">
+        <span>●</span><span style="animation-delay:.2s">●</span><span style="animation-delay:.4s">●</span>
+        &nbsp;AI thinking…
+      </div>
+    </div>
 
-                    if board.squares[clicked_row][clicked_col].has_piece():
-                        piece = board.squares[clicked_row][clicked_col].piece
-                        # Allow picking up pieces only if it's the player's turn
-                        # (always white for player). During quiz, still allow
-                        # picking up so the player can make their answer move.
-                        if piece.color == game.next_player and piece.color == 'white':
-                            board.calc_moves(piece, clicked_row, clicked_col, bool=True)
-                            dragger.save_initial(event.pos)
-                            dragger.drag_piece(piece)
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            # Show available moves even during quiz so player
-                            # can see where they can move
-                            game.show_moves(screen)
-                            game.show_pieces(screen)
+    <div class="card">
+      <div class="card-title">Feedback</div>
+      <div id="feedback-text" class="info">Make your first move</div>
+    </div>
 
-                elif event.type == pygame.MOUSEMOTION:
-                    motion_row = event.pos[1] // SQSIZE
-                    motion_col = event.pos[0] // SQSIZE
-                    game.set_hover(motion_row, motion_col)
-                    if dragger.dragging:
-                        dragger.update_mouse(event.pos)
-                        game.show_bg(screen)
-                        game.show_last_move(screen)
-                        game.show_moves(screen)
-                        game.show_pieces(screen)
-                        game.show_hover(screen)
-                        dragger.update_blit(screen)
+    <div class="card">
+      <div class="card-title">Game Mode</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="btn-normal" onclick="setMode('normal')">Normal</button>
+        <button class="mode-btn"        id="btn-puzzle" onclick="setMode('puzzle')">Puzzle</button>
+      </div>
+      <div style="margin-top:10px">
+        <div class="card-title" style="margin-bottom:6px">AI Depth</div>
+        <div class="diff-row">
+          <button class="diff-btn"        id="diff-easy"   onclick="setDiff(1,'easy')">Easy</button>
+          <button class="diff-btn active" id="diff-medium" onclick="setDiff(2,'medium')">Med</button>
+          <button class="diff-btn"        id="diff-hard"   onclick="setDiff(3,'hard')">Hard</button>
+        </div>
+      </div>
+    </div>
 
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    if dragger.dragging:
-                        dragger.update_mouse(event.pos)
-                        released_row = dragger.mouseY // SQSIZE
-                        released_col = dragger.mouseX // SQSIZE
+    <div class="card">
+      <div class="card-title">Move Log</div>
+      <div id="move-log"></div>
+    </div>
 
-                        initial = Square(dragger.initial_row, dragger.initial_col)
-                        final = Square(released_row, released_col)
-                        move = Move(initial, final)
+    <div class="btn-row">
+      <button onclick="newGame()">↺ New Game</button>
+    </div>
+  </div>
+</div>
 
-                        if board.valid_move(dragger.piece, move):
-                            # --- PUZZLE QUIZ ANSWER CHECK ---
-                            if quiz_active and puzzle_mode and quiz_best_move:
-                                player_matched = (
-                                    move.initial.row == quiz_best_move.initial.row and
-                                    move.initial.col == quiz_best_move.initial.col and
-                                    move.final.row == quiz_best_move.final.row and
-                                    move.final.col == quiz_best_move.final.col
-                                )
-                                if player_matched:
-                                    quiz_message = 'Perfect! That was the best move!'
-                                    quiz_color = (0, 220, 0)
-                                else:
-                                    quiz_message = 'Not the best — but keep going!'
-                                    quiz_color = (255, 150, 0)
-                                quiz_timer = 180
-                                quiz_active = False
-                                quiz_best_move = None
-                                moves_since_quiz = 0
-                                # Fall through: execute the move the player chose
+<div id="gameover">
+  <div class="go-box">
+    <h2 id="go-title">Game Over</h2>
+    <p  id="go-sub">—</p>
+    <button onclick="newGame()" style="font-size:0.75rem;padding:10px 24px;border-color:var(--accent);color:var(--accent)">New Game</button>
+  </div>
+</div>
 
-                            elif quiz_active and puzzle_mode:
-                                # Quiz is active but we have no best move stored
-                                # (shouldn't normally happen); just clear the quiz
-                                quiz_active = False
-                                moves_since_quiz = 0
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+// After deploying to Render, replace this with your Render service URL.
+// Example: 'https://chessproject.onrender.com'
+// Leave NO trailing slash.
+const API_BASE = 'https://YOUR-APP-NAME.onrender.com';
 
-                            # --- EXECUTE PLAYER MOVE ---
-                            score_before = evaluate(board)
-                            captured = board.squares[released_row][released_col].has_piece()
-                            board.move(dragger.piece, move)
-                            board.set_true_en_passant(dragger.piece)
-                            score_after = evaluate(board)
+// ── State ───────────────────────────────────────────────────────────────────
+let fen = '';
+let turn = 'white';
+let selected = null;
+let aiThinking = false;
+let gameMode = 'normal';
+let aiDepth  = 2;
+let movesSincePuzzle = 0;
+let puzzleActive = false;
+let puzzleUCI = null;
+let logNum = 1;
+let lastUCI = null;
+const PUZZLE_EVERY = 3;
 
-                            if not puzzle_mode:
-                                feedback.evaluate_move(score_before, score_after, game.next_player)
+// ── Piece images ─────────────────────────────────────────────────────────────
+const PIECE_IMGS = {
+  P:'assets/white_pawn.png',   N:'assets/white_knight.png',
+  B:'assets/white_bishop.png', R:'assets/white_rook.png',
+  Q:'assets/white_queen.png',  K:'assets/white_king.png',
+  p:'assets/black_pawn.png',   n:'assets/black_knight.png',
+  b:'assets/black_bishop.png', r:'assets/black_rook.png',
+  q:'assets/black_queen.png',  k:'assets/black_king.png',
+};
 
-                            game.play_sound(captured)
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            game.show_pieces(screen)
-                            game.next_turn()
-                            moves_since_quiz += 1
+// ── FEN helpers ─────────────────────────────────────────────────────────────
+function fenGrid(f) {
+  const rows = f.split(' ')[0].split('/');
+  const g = Array(8).fill(0).map(()=>Array(8).fill(null));
+  rows.forEach((row,r)=>{
+    let c=0;
+    for (const ch of row) {
+      if (/\d/.test(ch)) c+=+ch;
+      else { g[r][c]=ch; c++; }
+    }
+  });
+  return g;
+}
 
-                            # --- AI RESPONSE MOVE ---
-                            if game.next_player == 'black':
-                                await asyncio.sleep(0.3)
-                                if difficulty == 'easy':
-                                    result = self.get_random_ai_move(board)
-                                else:
-                                    result = get_best_move(board, depth=depth)
+function uciCoords(uci) {
+  const f='abcdefgh';
+  return [8-+uci[1], f.indexOf(uci[0]), 8-+uci[3], f.indexOf(uci[2])];
+}
 
-                                if result:
-                                    ai_piece, ai_move = result
-                                    for r in range(8):
-                                        for c in range(8):
-                                            if board.squares[r][c].piece is ai_piece:
-                                                board.calc_moves(ai_piece, r, c, bool=True)
-                                                break
-                                    ai_captured = board.squares[ai_move.final.row][ai_move.final.col].has_piece()
-                                    board.move(ai_piece, ai_move)
-                                    game.play_sound(ai_captured)
-                                    game.show_bg(screen)
-                                    game.show_last_move(screen)
-                                    game.show_pieces(screen)
-                                    game.next_turn()
-                                    moves_since_quiz += 1  # Count AI move too so quiz fires every 3 *full* move pairs
+function toUCI(fr,fc,tr,tc) {
+  const f='abcdefgh';
+  return `${f[fc]}${8-fr}${f[tc]}${8-tr}`;
+}
 
-                            # --- CHECK IF WE SHOULD TRIGGER A PUZZLE ---
-                            # Only trigger when: puzzle mode on, no quiz already
-                            # active, and enough moves have passed.
-                            if puzzle_mode and not quiz_active and moves_since_quiz >= quiz_interval:
-                                result = get_best_move(board, depth=2)
-                                if result:
-                                    _, quiz_best_move = result
-                                    quiz_active = True
-                                    moves_since_quiz = 0  # Reset BEFORE quiz, not after
+// ── API helper ──────────────────────────────────────────────────────────────
+async function api(path, body) {
+  try {
+    const r = await fetch(API_BASE + path, {
+      method: body !== undefined ? 'POST' : 'GET',
+      headers: {'Content-Type':'application/json'},
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    document.getElementById('conn-banner').classList.remove('show');
+    return await r.json();
+  } catch(e) {
+    console.error('API error:', e);
+    document.getElementById('conn-banner').classList.add('show');
+    return null;
+  }
+}
 
-                    dragger.undrag_piece()
+// ── Render board ────────────────────────────────────────────────────────────
+function renderBoard() {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  if (!fen) return;
+  const grid = fenGrid(fen);
 
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_s and quiz_active:
-                        quiz_active = False
-                        quiz_best_move = None
-                        quiz_message = 'Skipped! Keep playing.'
-                        quiz_color = (150, 150, 255)
-                        quiz_timer = 150
-                        moves_since_quiz = 0
+  let lf=null, lt=null;
+  if (lastUCI) {
+    const [fr,fc,tr,tc] = uciCoords(lastUCI);
+    lf=[fr,fc]; lt=[tr,tc];
+  }
 
-                    if event.key == pygame.K_t:
-                        game.change_theme()
+  for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+    const sq = document.createElement('div');
+    sq.className = 'sq ' + ((r+c)%2===0 ? 'light' : 'dark');
+    if (lf && lf[0]===r && lf[1]===c) sq.classList.add('last-move');
+    if (lt && lt[0]===r && lt[1]===c) sq.classList.add('last-move');
+    if (selected && selected[0]===r && selected[1]===c) sq.classList.add('selected');
 
-                    if event.key == pygame.K_r:
-                        game.reset()
-                        game = self.game
-                        board = self.game.board
-                        dragger = self.game.dragger
-                        feedback = Feedback()
-                        quiz_active = False
-                        quiz_best_move = None
-                        moves_since_quiz = 0
+    const p = grid[r][c];
+    if (p && PIECE_IMGS[p]) {
+      const img = document.createElement('img');
+      img.src = PIECE_IMGS[p];
+      img.style.cssText = 'width:80%;height:80%;object-fit:contain;pointer-events:none;';
+      sq.appendChild(img);
+    }
+    sq.addEventListener('click', ()=>onSqClick(r,c));
+    el.appendChild(sq);
+  }
+}
 
-                    if event.key == pygame.K_m:
-                        self.__init__()
-                        menu = Menu(screen)
-                        mode, difficulty = menu.show()
-                        await self.mainloop(mode, difficulty)
-                        return
+// ── Square click ────────────────────────────────────────────────────────────
+function onSqClick(r, c) {
+  if (aiThinking || turn !== 'white') return;
 
-                elif event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+  const grid = fenGrid(fen);
+  const p = grid[r][c];
+  const isWhite = p && p === p.toUpperCase();
 
-            pygame.display.update()
-            await asyncio.sleep(0)
+  if (selected) {
+    const [sr,sc] = selected;
+    if (sr===r && sc===c) { selected=null; renderBoard(); return; }
+    if (isWhite) { selected=[r,c]; renderBoard(); return; }
 
-    def _draw_banner(self, surface, font, text):
-        banner = pygame.Surface((WIDTH, 50))
-        banner.set_alpha(210)
-        banner.fill((20, 20, 80))
-        surface.blit(banner, (0, HEIGHT // 2 - 25))
-        lbl = font.render(text, True, (255, 255, 100))
-        surface.blit(lbl, (WIDTH // 2 - lbl.get_width() // 2, HEIGHT // 2 - 12))
+    const uci = toUCI(sr,sc,r,c);
 
-    def _draw_message(self, surface, font, text, color):
-        lbl = font.render(text, True, color)
-        bg = pygame.Surface((lbl.get_width() + 20, 44))
-        bg.set_alpha(200)
-        bg.fill((0, 0, 0))
-        surface.blit(bg, (WIDTH // 2 - lbl.get_width() // 2 - 10, 8))
-        surface.blit(lbl, (WIDTH // 2 - lbl.get_width() // 2, 16))
+    if (puzzleActive && puzzleUCI) {
+      const correct = uci === puzzleUCI;
+      setFeedback(
+        correct ? '✓ Perfect! That was the best move!' : '✗ Not the best — but keep going!',
+        correct ? 'good' : 'bad'
+      );
+      puzzleActive = false;
+      puzzleUCI = null;
+      document.getElementById('puzzle-banner').classList.remove('active');
+      movesSincePuzzle = 0;
+    }
 
+    selected = null;
+    doPlayerMove(uci);
+    return;
+  }
 
-async def main():
-    app = Main()
-    menu = Menu(app.screen)
-    mode, difficulty = menu.show()
-    await app.mainloop(mode, difficulty)
+  if (isWhite) { selected=[r,c]; renderBoard(); }
+}
 
+// ── Player move ─────────────────────────────────────────────────────────────
+async function doPlayerMove(uci) {
+  const data = await api('/player-move', {move: uci});
+  if (!data) return;
 
-asyncio.run(main())
+  if (data.status === 'invalid' || data.status === 'error') {
+    setFeedback('Illegal move — try again', 'bad');
+    selected=null; renderBoard(); return;
+  }
+
+  fen = data.fen;
+  turn = data.turn;
+  lastUCI = uci;
+  movesSincePuzzle++;
+  appendLog(uci, 'w');
+  renderBoard();
+
+  if (data.checkmate) { showGameOver('You win!', 'Checkmate'); return; }
+  if (data.stalemate) { showGameOver('Draw', 'Stalemate'); return; }
+  if (data.check) setFeedback('Check!', 'bad');
+
+  if (gameMode==='puzzle' && !puzzleActive && movesSincePuzzle>=PUZZLE_EVERY) {
+    await triggerPuzzle(); return;
+  }
+
+  await doAIMove();
+}
+
+// ── AI move ─────────────────────────────────────────────────────────────────
+async function doAIMove() {
+  aiThinking=true; showThinking(true); setStatus('AI thinking…');
+
+  const data = await api('/ai-move', {depth: aiDepth});
+  aiThinking=false; showThinking(false);
+
+  if (!data || data.status==='no_moves') { setStatus('Game over'); return; }
+
+  fen = data.fen;
+  turn = data.turn;
+  lastUCI = data.move_uci;
+  movesSincePuzzle++;
+  appendLog(data.move_uci, 'b');
+  renderBoard();
+  setStatus('White to move');
+
+  if (data.checkmate) { showGameOver('AI wins!', 'Checkmate'); return; }
+  if (data.stalemate) { showGameOver('Draw', 'Stalemate'); return; }
+  if (data.check) setFeedback('You are in check!', 'bad');
+  else if (gameMode !== 'puzzle') setFeedback('Your turn', 'info');
+
+  if (gameMode==='puzzle' && !puzzleActive && movesSincePuzzle>=PUZZLE_EVERY) {
+    await triggerPuzzle();
+  }
+}
+
+// ── Puzzle ───────────────────────────────────────────────────────────────────
+async function triggerPuzzle() {
+  const data = await api('/best-move', {depth:2});
+  if (!data || data.status!=='ok') { await doAIMove(); return; }
+  puzzleUCI = data.move_uci;
+  puzzleActive = true;
+  movesSincePuzzle = 0;
+  document.getElementById('puzzle-banner').classList.add('active');
+  setStatus('Find the best move!');
+  setFeedback('Analyse the position carefully…', 'info');
+}
+
+async function skipPuzzle() {
+  puzzleActive=false; puzzleUCI=null; movesSincePuzzle=0;
+  document.getElementById('puzzle-banner').classList.remove('active');
+  setFeedback('Skipped — keep playing', 'info');
+  await doAIMove();
+}
+
+// ── New game ─────────────────────────────────────────────────────────────────
+async function newGame() {
+  const data = await api('/new-game', {});
+  if (!data) return;
+  fen=data.fen; turn=data.turn; selected=null; lastUCI=null;
+  puzzleActive=false; puzzleUCI=null; movesSincePuzzle=0;
+  logNum=1; aiThinking=false;
+  document.getElementById('gameover').classList.remove('show');
+  document.getElementById('puzzle-banner').classList.remove('active');
+  document.getElementById('move-log').innerHTML='';
+  setFeedback('Make your first move', 'info');
+  setStatus('White to move');
+  showThinking(false);
+  renderBoard();
+}
+
+// ── Move log ─────────────────────────────────────────────────────────────────
+function appendLog(uci, side) {
+  const log = document.getElementById('move-log');
+  if (side==='w') {
+    const d=document.createElement('div'); d.className='move-pair';
+    d.innerHTML=`<span class="move-num">${logNum}.</span><span class="move-w">${uci}</span><span id="lb${logNum}"></span>`;
+    log.appendChild(d); logNum++;
+  } else {
+    const el=document.getElementById(`lb${logNum-1}`);
+    if (el) { el.textContent=uci; el.style.color='var(--muted)'; }
+  }
+  log.scrollTop=log.scrollHeight;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(t)      { document.getElementById('status-text').textContent=t; }
+function showThinking(v)   { document.getElementById('thinking').classList.toggle('show',v); }
+function showGameOver(t,s) {
+  document.getElementById('go-title').textContent=t;
+  document.getElementById('go-sub').textContent=s;
+  document.getElementById('gameover').classList.add('show');
+}
+function setFeedback(t,cls) {
+  const el=document.getElementById('feedback-text');
+  el.textContent=t; el.className=cls;
+}
+function setMode(m) {
+  gameMode=m;
+  document.getElementById('btn-normal').classList.toggle('active',m==='normal');
+  document.getElementById('btn-puzzle').classList.toggle('active',m==='puzzle');
+  newGame();
+}
+function setDiff(d,name) {
+  aiDepth=d;
+  ['easy','medium','hard'].forEach(x=>document.getElementById('diff-'+x).classList.toggle('active',x===name));
+  newGame();
+}
+
+// ── Coordinates ───────────────────────────────────────────────────────────────
+function buildCoords() {
+  const ft=document.getElementById('files-top'),
+        fb=document.getElementById('files-bot'),
+        rl=document.getElementById('ranks-left');
+  'abcdefgh'.split('').forEach(f=>[ft,fb].forEach(el=>{
+    const s=document.createElement('span'); s.textContent=f; el.appendChild(s);
+  }));
+  for (let r=1;r<=8;r++) {
+    const s=document.createElement('span'); s.textContent=9-r; rl.appendChild(s);
+  }
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if ((e.key==='s'||e.key==='S') && puzzleActive) skipPuzzle();
+  if (e.key==='r'||e.key==='R') newGame();
+});
+
+buildCoords();
+newGame();
+</script>
+</body>
+</html>

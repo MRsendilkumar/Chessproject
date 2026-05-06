@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chess AI Puzzle Trainer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="board-panel" aria-label="Chess puzzle board">
+        <div class="top-bar">
+          <div>
+            <p class="eyebrow">Chess AI</p>
+            <h1>Puzzle Trainer</h1>
+          </div>
+          <div class="score" aria-live="polite">
+            <span id="scoreValue">0</span>
+            <span>Solved</span>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="Interactive chess board"></div>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <div class="status-block">
+          <p id="puzzleTitle" class="puzzle-title">Loading puzzle...</p>
+          <p id="puzzleMeta" class="puzzle-meta"></p>
+          <p id="message" class="message" aria-live="polite"></p>
+        </div>
+
+        <div class="controls">
+          <button id="newPuzzleBtn" type="button">New Puzzle</button>
+          <button id="hintBtn" type="button">Hint</button>
+          <button id="flipBtn" type="button">Flip Board</button>
+        </div>
+
+        <div class="engine-box">
+          <div class="engine-row">
+            <span>Engine depth</span>
+            <strong id="depthLabel">3</strong>
+          </div>
+          <input id="depthSlider" type="range" min="2" max="4" value="3" />
+          <div class="engine-row muted">
+            <span>Best move</span>
+            <strong id="bestMoveLabel">hidden</strong>
+          </div>
+        </div>
+
+        <div class="move-list">
+          <h2>Attempts</h2>
+          <ol id="attempts"></ol>
+        </div>
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
