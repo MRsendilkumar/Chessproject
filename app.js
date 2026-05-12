@@ -16,6 +16,7 @@ const PIECE_IMAGES = {
 const VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 const FILES = "abcdefgh";
 const EMPTY_CASTLING = "-";
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const STORAGE_KEY = "chess-ai-trainer-stats-v1";
 const THEMES = {
   classic: "Classic",
@@ -110,6 +111,9 @@ const PST = {
 
 const state = {
   game: null,
+  mode: "puzzle",
+  playerColor: "w",
+  aiThinking: false,
   puzzleIndex: 0,
   selected: null,
   legalTargets: [],
@@ -180,6 +184,14 @@ function playSound(name) {
 }
 
 function injectTrainingUi() {
+  const modeSwitch = document.createElement("div");
+  modeSwitch.className = "mode-switch";
+  modeSwitch.innerHTML = `
+    <button id="puzzleModeBtn" type="button" class="active">Puzzles</button>
+    <button id="aiModeBtn" type="button">Vs AI</button>
+    <button id="pvpModeBtn" type="button">P vs P</button>
+  `;
+
   const status = document.createElement("div");
   status.className = "training-stats";
   status.innerHTML = `
@@ -238,6 +250,7 @@ function injectTrainingUi() {
   const sidePanel = document.querySelector(".side-panel");
   const statusBlock = document.querySelector(".status-block");
   const controls = document.querySelector(".controls");
+  statusBlock.before(modeSwitch);
   statusBlock.after(tagRow);
   tagRow.after(status);
   status.after(tools);
@@ -264,6 +277,9 @@ function injectTrainingUi() {
   document.body.append(modal);
 
   els.progress = document.querySelector("#progressValue");
+  els.puzzleMode = document.querySelector("#puzzleModeBtn");
+  els.aiMode = document.querySelector("#aiModeBtn");
+  els.pvpMode = document.querySelector("#pvpModeBtn");
   els.timer = document.querySelector("#timerValue");
   els.streak = document.querySelector("#streakValue");
   els.bestStreak = document.querySelector("#bestStreakValue");
@@ -295,6 +311,9 @@ function injectTrainingUi() {
 
   els.solution.addEventListener("click", revealSolution);
   els.restart.addEventListener("click", restartTraining);
+  els.puzzleMode.addEventListener("click", () => startPuzzleMode());
+  els.aiMode.addEventListener("click", () => startPlayMode("ai"));
+  els.pvpMode.addEventListener("click", () => startPlayMode("pvp"));
   els.themeSelect.addEventListener("change", () => setTheme(els.themeSelect.value));
   els.prev.addEventListener("click", () => loadPuzzle(state.puzzleIndex - 1));
   els.skip.addEventListener("click", skipPuzzle);
@@ -831,6 +850,7 @@ function computeBestMove() {
 }
 
 function loadPuzzle(index = state.puzzleIndex) {
+  state.mode = "puzzle";
   const puzzleSet = currentPuzzleSet();
   if (!puzzleSet.length) {
     setMessage("No missed puzzles to review yet.", "");
@@ -858,6 +878,50 @@ function loadPuzzle(index = state.puzzleIndex) {
   startTimer();
   updateTrainingStats();
   render();
+}
+
+function startPuzzleMode() {
+  state.mode = "puzzle";
+  state.aiThinking = false;
+  state.dailyMode = false;
+  state.reviewMode = false;
+  setActiveModeButton("puzzle");
+  loadPuzzle(state.puzzleIndex);
+}
+
+function startPlayMode(mode) {
+  state.mode = mode;
+  state.aiThinking = false;
+  state.game = parseFen(START_FEN);
+  state.selected = null;
+  state.legalTargets = [];
+  state.lastMove = null;
+  state.attempts = [];
+  state.locked = false;
+  state.revealSolution = false;
+  window.clearInterval(state.timerId);
+  state.timerId = null;
+
+  setActiveModeButton(mode);
+  els.title.textContent = mode === "ai" ? "Player vs AI" : "Player vs Player";
+  els.meta.textContent = mode === "ai"
+    ? "Play White against the chess engine. The AI replies as Black."
+    : "Two players can play a full local chess game on the same board.";
+  if (els.difficulty) els.difficulty.textContent = "Game";
+  if (els.theme) els.theme.textContent = mode === "ai" ? "Engine" : "Local";
+  if (els.solution) els.solution.disabled = true;
+  els.bestMove.textContent = mode === "ai" ? "AI ready" : "P vs P";
+  setMessage("White to move.", "");
+  renderAttempts();
+  updateTrainingStats();
+  render();
+}
+
+function setActiveModeButton(mode) {
+  if (!els.puzzleMode) return;
+  els.puzzleMode.classList.toggle("active", mode === "puzzle");
+  els.aiMode.classList.toggle("active", mode === "ai");
+  els.pvpMode.classList.toggle("active", mode === "pvp");
 }
 
 function setMessage(text, type) {
@@ -933,7 +997,9 @@ function coordinateLabel(row, col) {
 }
 
 function handleSquareClick(row, col) {
-  if (state.locked || state.finalShown) return;
+  if (state.aiThinking) return;
+  if (state.mode === "puzzle" && (state.locked || state.finalShown)) return;
+  if (state.mode === "ai" && state.game.turn !== state.playerColor) return;
   const piece = state.game.board[row][col];
   if (state.selected) {
     const chosen = state.legalTargets.find((move) => move.to.row === row && move.to.col === col);
@@ -954,6 +1020,11 @@ function handleSquareClick(row, col) {
 }
 
 function submitMove(move) {
+  if (state.mode !== "puzzle") {
+    submitGameMove(move);
+    return;
+  }
+
   state.attempts.unshift(moveToSanish(move));
   renderAttempts();
   state.selected = null;
@@ -1019,6 +1090,75 @@ function renderAttempts() {
     li.textContent = attempt;
     els.attempts.append(li);
   }
+}
+
+function submitGameMove(move) {
+  const notation = moveToSanish(move);
+  const isCapture = Boolean(move.captured);
+  state.game = makeMove(state.game, move);
+  state.lastMove = move;
+  state.selected = null;
+  state.legalTargets = [];
+  state.attempts.unshift(`${state.game.turn === "w" ? "Black" : "White"}: ${notation}`);
+  renderAttempts();
+  playSound(isCapture ? "capture" : "move");
+  render();
+
+  const status = gameStatusMessage();
+  if (status.finished) {
+    setMessage(status.text, status.type);
+    return;
+  }
+
+  setMessage(`${state.game.turn === "w" ? "White" : "Black"} to move.`, "");
+
+  if (state.mode === "ai" && state.game.turn !== state.playerColor) {
+    window.setTimeout(makeAiMove, 300);
+  }
+}
+
+function makeAiMove() {
+  if (state.mode !== "ai" || state.game.turn === state.playerColor) return;
+  state.aiThinking = true;
+  els.bestMove.textContent = "thinking...";
+  setMessage("AI is thinking...", "");
+
+  window.setTimeout(() => {
+    const result = search(state.game, state.depth, -Infinity, Infinity);
+    const move = result.move;
+    state.aiThinking = false;
+
+    if (!move) {
+      const status = gameStatusMessage();
+      setMessage(status.text, status.type);
+      els.bestMove.textContent = "none";
+      return;
+    }
+
+    const notation = moveToSanish(move);
+    const isCapture = Boolean(move.captured);
+    state.game = makeMove(state.game, move);
+    state.lastMove = move;
+    state.attempts.unshift(`AI: ${notation}`);
+    els.bestMove.textContent = notation;
+    renderAttempts();
+    playSound(isCapture ? "capture" : "move");
+    render();
+
+    const status = gameStatusMessage();
+    if (status.finished) setMessage(status.text, status.type);
+    else setMessage("Your move.", "");
+  }, 60);
+}
+
+function gameStatusMessage() {
+  const moves = legalMoves(state.game, state.game.turn);
+  if (moves.length > 0) return { finished: false, text: "", type: "" };
+  if (isInCheck(state.game, state.game.turn)) {
+    const winner = state.game.turn === "w" ? "Black" : "White";
+    return { finished: true, text: `Checkmate. ${winner} wins.`, type: "good" };
+  }
+  return { finished: true, text: "Stalemate. The game is a draw.", type: "" };
 }
 
 els.newPuzzle.addEventListener("click", () => loadPuzzle(state.puzzleIndex + 1));
@@ -1153,3 +1293,4 @@ loadStoredStats();
 injectTrainingUi();
 setTheme(state.theme);
 loadPuzzle(0);
+
