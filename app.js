@@ -23,55 +23,79 @@ const THEMES = {
   graphite: "Graphite",
   tournament: "Tournament",
 };
+const BOARD_THEME_COLORS = {
+  classic: { light: "#e7d7b8", dark: "#6f8a67" },
+  ocean: { light: "#d9edf4", dark: "#4f7cac" },
+  graphite: { light: "#d7d9d7", dark: "#656d69" },
+  tournament: { light: "#f0d9b5", dark: "#b58863" },
+};
 
 const PUZZLES = [
   {
+    id: "back-rank-punisher",
     name: "Back Rank Punisher",
     fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1",
     theme: "White to move",
     difficulty: "Easy",
     tag: "Back Rank",
+    rating: 850,
     description: "Find the forcing rook move.",
+    explanation: "The best move uses the rook immediately. Quiet moves give Black time to escape the back-rank pressure.",
   },
   {
+    id: "queen-corner",
     name: "Queen Takes the Corner",
     fen: "6k1/5ppp/8/8/8/8/5PPP/6KQ w - - 0 1",
     theme: "White to move",
     difficulty: "Easy",
     tag: "Mate Threat",
+    rating: 800,
     description: "The king is boxed in. Win immediately.",
+    explanation: "The queen has a forcing move because the Black king has very few safe squares.",
   },
   {
+    id: "knight-fork",
     name: "Knight Fork",
     fen: "4k3/8/8/3n4/8/8/4K3/7R b - - 0 1",
     theme: "Black to move",
     difficulty: "Medium",
     tag: "Fork",
+    rating: 1050,
     description: "Use a knight fork to win material.",
+    explanation: "The tactic is a fork: the knight move should attack two important targets at once.",
   },
   {
+    id: "loose-queen",
     name: "Loose Queen",
     fen: "4k3/8/8/8/8/3b4/4K3/3Q4 b - - 0 1",
     theme: "Black to move",
     difficulty: "Easy",
     tag: "Capture",
+    rating: 750,
     description: "The bishop has a clean tactical shot.",
+    explanation: "The queen is loose on the diagonal. The best move wins material immediately.",
   },
   {
+    id: "promotion-race",
     name: "Promotion Race",
     fen: "6k1/P7/8/8/8/8/8/6K1 w - - 0 1",
     theme: "White to move",
     difficulty: "Medium",
     tag: "Promotion",
+    rating: 1000,
     description: "Choose the move that changes the game.",
+    explanation: "Promotion is the priority. Do not waste time with king moves when a pawn can become a queen.",
   },
   {
+    id: "rook-behind-king",
     name: "Rook Behind the King",
     fen: "4k3/8/8/8/8/8/4K3/7r b - - 0 1",
     theme: "Black to move",
     difficulty: "Medium",
     tag: "Check",
+    rating: 950,
     description: "Find the checking move that keeps control.",
+    explanation: "Checks force the opponent to respond. The best rook move keeps the king under pressure.",
   },
 ];
 
@@ -109,12 +133,16 @@ const state = {
   missed: [],
   reviewMode: false,
   reviewList: [],
+  dailyMode: false,
   theme: "classic",
   lifetime: {
     solved: 0,
     attempted: 0,
     bestStreak: 0,
     fastest: null,
+    rating: 900,
+    tacticStats: {},
+    puzzleMemory: {},
   },
 };
 
@@ -161,6 +189,8 @@ function injectTrainingUi() {
     <div><span>Best</span><strong id="bestStreakValue">0</strong></div>
     <div><span>Lifetime</span><strong id="lifetimeValue">0</strong></div>
     <div><span>Fastest</span><strong id="fastestValue">--</strong></div>
+    <div><span>Rating</span><strong id="ratingValue">900</strong></div>
+    <div><span>Due review</span><strong id="dueValue">0</strong></div>
   `;
 
   const tagRow = document.createElement("div");
@@ -178,6 +208,11 @@ function injectTrainingUi() {
   const tools = document.createElement("div");
   tools.className = "tool-panel";
   tools.innerHTML = `
+    <div class="learning-card">
+      <span>Weakest pattern</span>
+      <strong id="weaknessValue">None yet</strong>
+      <p id="coachValue">Solve a few puzzles and this coach panel will adapt.</p>
+    </div>
     <label class="field">
       <span>Board theme</span>
       <select id="themeSelect">
@@ -188,6 +223,8 @@ function injectTrainingUi() {
       <button id="prevBtn" type="button">Previous</button>
       <button id="skipBtn" type="button">Skip</button>
       <button id="copyFenBtn" type="button">Copy FEN</button>
+      <button id="dailyBtn" type="button">Daily Puzzle</button>
+      <button id="adaptiveBtn" type="button">Adaptive Drill</button>
       <button id="reviewBtn" type="button">Review Missed</button>
       <button id="resetStatsBtn" type="button">Reset Stats</button>
     </div>
@@ -218,6 +255,8 @@ function injectTrainingUi() {
         <div><span>Best streak</span><strong id="finalBestStreak">0</strong></div>
         <div><span>Avg. time</span><strong id="finalAverageTime">0s</strong></div>
         <div><span>Missed</span><strong id="finalMissed">0</strong></div>
+        <div><span>Rating</span><strong id="finalRating">900</strong></div>
+        <div><span>Weak spot</span><strong id="finalWeakness">None</strong></div>
       </div>
       <button id="restartBtn" type="button">Restart Training</button>
     </div>
@@ -230,12 +269,18 @@ function injectTrainingUi() {
   els.bestStreak = document.querySelector("#bestStreakValue");
   els.lifetime = document.querySelector("#lifetimeValue");
   els.fastest = document.querySelector("#fastestValue");
+  els.rating = document.querySelector("#ratingValue");
+  els.due = document.querySelector("#dueValue");
+  els.weakness = document.querySelector("#weaknessValue");
+  els.coach = document.querySelector("#coachValue");
   els.difficulty = document.querySelector("#difficultyTag");
   els.theme = document.querySelector("#themeTag");
   els.themeSelect = document.querySelector("#themeSelect");
   els.prev = document.querySelector("#prevBtn");
   els.skip = document.querySelector("#skipBtn");
   els.copyFen = document.querySelector("#copyFenBtn");
+  els.daily = document.querySelector("#dailyBtn");
+  els.adaptive = document.querySelector("#adaptiveBtn");
   els.review = document.querySelector("#reviewBtn");
   els.resetStats = document.querySelector("#resetStatsBtn");
   els.solution = document.querySelector("#solutionBtn");
@@ -244,6 +289,8 @@ function injectTrainingUi() {
   els.finalBestStreak = document.querySelector("#finalBestStreak");
   els.finalAverageTime = document.querySelector("#finalAverageTime");
   els.finalMissed = document.querySelector("#finalMissed");
+  els.finalRating = document.querySelector("#finalRating");
+  els.finalWeakness = document.querySelector("#finalWeakness");
   els.restart = document.querySelector("#restartBtn");
 
   els.solution.addEventListener("click", revealSolution);
@@ -252,6 +299,8 @@ function injectTrainingUi() {
   els.prev.addEventListener("click", () => loadPuzzle(state.puzzleIndex - 1));
   els.skip.addEventListener("click", skipPuzzle);
   els.copyFen.addEventListener("click", copyCurrentFen);
+  els.daily.addEventListener("click", startDailyPuzzle);
+  els.adaptive.addEventListener("click", startAdaptiveDrill);
   els.review.addEventListener("click", startReviewMode);
   els.resetStats.addEventListener("click", resetLifetimeStats);
 }
@@ -290,6 +339,11 @@ function updateTrainingStats() {
   els.bestStreak.textContent = state.bestStreak;
   els.lifetime.textContent = state.lifetime.solved;
   els.fastest.textContent = state.lifetime.fastest === null ? "--" : `${state.lifetime.fastest}s`;
+  els.rating.textContent = state.lifetime.rating;
+  els.due.textContent = duePuzzles().length;
+  const weakness = weakestTactic();
+  els.weakness.textContent = weakness ? `${weakness.tag} (${weakness.accuracy}%)` : "None yet";
+  els.coach.textContent = coachMessage(weakness);
 }
 
 function loadStoredStats() {
@@ -318,7 +372,126 @@ function setTheme(theme) {
 }
 
 function currentPuzzleSet() {
+  if (state.dailyMode) return [PUZZLES[dailyPuzzleIndex()]];
   return state.reviewMode ? state.reviewList : PUZZLES;
+}
+
+function puzzleKey(puzzle) {
+  return puzzle.id || puzzle.name;
+}
+
+function memoryFor(puzzle) {
+  const key = puzzleKey(puzzle);
+  if (!state.lifetime.puzzleMemory[key]) {
+    state.lifetime.puzzleMemory[key] = {
+      interval: 0,
+      ease: 2.5,
+      due: 0,
+      correct: 0,
+      wrong: 0,
+    };
+  }
+  return state.lifetime.puzzleMemory[key];
+}
+
+function updateSpacedRepetition(puzzle, correct) {
+  const memory = memoryFor(puzzle);
+  const now = Date.now();
+  if (correct) {
+    memory.correct += 1;
+    memory.interval = memory.interval === 0 ? 1 : Math.ceil(memory.interval * memory.ease);
+    memory.ease = Math.min(3.0, memory.ease + 0.12);
+  } else {
+    memory.wrong += 1;
+    memory.interval = 0.05;
+    memory.ease = Math.max(1.3, memory.ease - 0.2);
+  }
+  memory.due = now + memory.interval * 24 * 60 * 60 * 1000;
+}
+
+function duePuzzles() {
+  const now = Date.now();
+  return PUZZLES.filter((puzzle) => {
+    const memory = state.lifetime.puzzleMemory[puzzleKey(puzzle)];
+    return memory && memory.due <= now;
+  });
+}
+
+function updateTacticStats(puzzle, correct) {
+  const tag = puzzle.tag;
+  if (!state.lifetime.tacticStats[tag]) {
+    state.lifetime.tacticStats[tag] = { correct: 0, total: 0 };
+  }
+  state.lifetime.tacticStats[tag].total += 1;
+  if (correct) state.lifetime.tacticStats[tag].correct += 1;
+}
+
+function weakestTactic() {
+  const entries = Object.entries(state.lifetime.tacticStats)
+    .filter(([, stat]) => stat.total > 0)
+    .map(([tag, stat]) => ({
+      tag,
+      accuracy: Math.round((stat.correct / stat.total) * 100),
+      total: stat.total,
+    }))
+    .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total);
+  return entries[0] || null;
+}
+
+function coachMessage(weakness) {
+  if (!weakness) return "Solve a few puzzles and this coach panel will adapt.";
+  if (weakness.accuracy < 50) return `Focus on ${weakness.tag}. The trainer will bring those positions back more often.`;
+  if (weakness.accuracy < 75) return `${weakness.tag} is improving. Keep drilling that pattern.`;
+  return `Your weakest pattern is ${weakness.tag}, but your accuracy is solid.`;
+}
+
+function updateUserRating(puzzle, correct) {
+  const expected = 1 / (1 + 10 ** ((puzzle.rating - state.lifetime.rating) / 400));
+  const score = correct ? 1 : 0;
+  const change = Math.round(24 * (score - expected));
+  state.lifetime.rating = Math.max(100, state.lifetime.rating + change);
+}
+
+function recordPuzzleResult(puzzle, correct) {
+  updateSpacedRepetition(puzzle, correct);
+  updateTacticStats(puzzle, correct);
+  updateUserRating(puzzle, correct);
+  saveStoredStats();
+}
+
+function dailyPuzzleIndex() {
+  const dateKey = new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (const char of dateKey) hash = (hash * 31 + char.charCodeAt(0)) % 9973;
+  return hash % PUZZLES.length;
+}
+
+function startDailyPuzzle() {
+  state.reviewMode = false;
+  state.dailyMode = true;
+  state.completedCount = 0;
+  state.sessionSolved = 0;
+  state.totalTime = 0;
+  loadPuzzle(0);
+  setMessage("Daily puzzle loaded. One clean solve, like a chess Wordle.", "");
+}
+
+function startAdaptiveDrill() {
+  const weakness = weakestTactic();
+  const due = duePuzzles();
+  const weakPuzzles = weakness ? PUZZLES.filter((puzzle) => puzzle.tag === weakness.tag) : [];
+  const queue = [...due, ...weakPuzzles, ...PUZZLES]
+    .filter((puzzle, index, arr) => arr.findIndex((item) => puzzleKey(item) === puzzleKey(puzzle)) === index);
+  state.reviewMode = true;
+  state.dailyMode = false;
+  state.reviewList = queue;
+  state.completedCount = 0;
+  state.sessionSolved = 0;
+  state.totalTime = 0;
+  state.finalShown = false;
+  els.results.classList.add("hidden");
+  loadPuzzle(0);
+  setMessage("Adaptive drill loaded. Due reviews and weak patterns come first.", "");
 }
 
 function parseFen(fen) {
@@ -674,7 +847,8 @@ function loadPuzzle(index = state.puzzleIndex) {
   state.locked = false;
   state.revealSolution = false;
   els.title.textContent = puzzle.name;
-  els.meta.textContent = `${state.reviewMode ? "Review mode. " : ""}${puzzle.theme}. ${puzzle.description}`;
+  const modeLabel = state.dailyMode ? "Daily puzzle. " : state.reviewMode ? "Adaptive/review mode. " : "";
+  els.meta.textContent = `${modeLabel}${puzzle.theme}. ${puzzle.description} Rating: ${puzzle.rating}.`;
   if (els.difficulty) els.difficulty.textContent = puzzle.difficulty;
   if (els.theme) els.theme.textContent = puzzle.tag;
   if (els.solution) els.solution.disabled = false;
@@ -707,6 +881,8 @@ function render() {
     const square = document.createElement("button");
     square.type = "button";
     square.className = `square ${(row + col) % 2 ? "dark" : "light"}`;
+    const colors = BOARD_THEME_COLORS[state.theme] || BOARD_THEME_COLORS.classic;
+    square.style.backgroundColor = (row + col) % 2 ? colors.dark : colors.light;
     square.dataset.row = row;
     square.dataset.col = col;
     square.setAttribute("aria-label", squareName(row, col));
@@ -797,7 +973,7 @@ function submitMove(move) {
     state.lifetime.attempted += 1;
     state.lifetime.bestStreak = Math.max(state.lifetime.bestStreak, state.bestStreak);
     state.lifetime.fastest = state.lifetime.fastest === null ? state.elapsed : Math.min(state.lifetime.fastest, state.elapsed);
-    saveStoredStats();
+    recordPuzzleResult(currentPuzzleSet()[state.puzzleIndex], true);
     state.locked = true;
     stopTimer();
     updateTrainingStats();
@@ -823,13 +999,13 @@ function submitMove(move) {
   if (!state.missed.some((puzzle) => puzzle.name === currentPuzzleSet()[state.puzzleIndex].name)) {
     state.missed.push(currentPuzzleSet()[state.puzzleIndex]);
   }
-  saveStoredStats();
+  recordPuzzleResult(currentPuzzleSet()[state.puzzleIndex], false);
   state.locked = true;
   state.revealSolution = true;
   stopTimer();
   updateTrainingStats();
   playSound(isCapture ? "capture" : "move");
-  setMessage(`Not the best move. Engine preferred ${best}. Look for checks, captures, or threats.`, "bad");
+  setMessage(`Not the best move. Engine preferred ${best}. ${currentPuzzleSet()[state.puzzleIndex].explanation}`, "bad");
   render();
   if (state.completedCount >= currentPuzzleSet().length) {
     window.setTimeout(showResults, 1200);
@@ -873,11 +1049,14 @@ function revealSolution() {
 
 function skipPuzzle() {
   if (!state.locked) {
+    const puzzle = currentPuzzleSet()[state.puzzleIndex];
     state.completedCount += 1;
     state.streak = 0;
-    if (!state.missed.some((puzzle) => puzzle.name === currentPuzzleSet()[state.puzzleIndex].name)) {
-      state.missed.push(currentPuzzleSet()[state.puzzleIndex]);
+    state.lifetime.attempted += 1;
+    if (!state.missed.some((missed) => missed.name === puzzle.name)) {
+      state.missed.push(puzzle);
     }
+    recordPuzzleResult(puzzle, false);
     stopTimer();
   }
   if (state.completedCount >= currentPuzzleSet().length) showResults();
@@ -910,7 +1089,15 @@ function startReviewMode() {
 }
 
 function resetLifetimeStats() {
-  state.lifetime = { solved: 0, attempted: 0, bestStreak: 0, fastest: null };
+  state.lifetime = {
+    solved: 0,
+    attempted: 0,
+    bestStreak: 0,
+    fastest: null,
+    rating: 900,
+    tacticStats: {},
+    puzzleMemory: {},
+  };
   saveStoredStats();
   updateTrainingStats();
   setMessage("Lifetime stats reset.", "");
@@ -924,6 +1111,9 @@ function showResults() {
   els.finalBestStreak.textContent = state.bestStreak;
   els.finalAverageTime.textContent = `${average}s`;
   els.finalMissed.textContent = state.missed.length;
+  els.finalRating.textContent = state.lifetime.rating;
+  const weakness = weakestTactic();
+  els.finalWeakness.textContent = weakness ? weakness.tag : "None";
   els.results.classList.remove("hidden");
 }
 
@@ -936,6 +1126,7 @@ function restartTraining() {
   state.totalTime = 0;
   state.finalShown = false;
   state.reviewMode = false;
+  state.dailyMode = false;
   state.reviewList = [];
   els.results.classList.add("hidden");
   loadPuzzle(0);
