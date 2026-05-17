@@ -114,6 +114,7 @@ const state = {
   mode: "puzzle",
   playerColor: "w",
   aiThinking: false,
+  menuOpen: true,
   puzzleIndex: 0,
   selected: null,
   legalTargets: [],
@@ -238,6 +239,7 @@ function injectTrainingUi() {
       <button id="dailyBtn" type="button">Daily Puzzle</button>
       <button id="adaptiveBtn" type="button">Adaptive Drill</button>
       <button id="reviewBtn" type="button">Review Missed</button>
+      <button id="menuBtn" type="button">Main Menu</button>
       <button id="resetStatsBtn" type="button">Reset Stats</button>
     </div>
     <details class="help-box">
@@ -276,6 +278,28 @@ function injectTrainingUi() {
   `;
   document.body.append(modal);
 
+  const welcome = document.createElement("div");
+  welcome.id = "welcomeScreen";
+  welcome.className = "welcome-screen";
+  welcome.innerHTML = `
+    <div class="welcome-card">
+      <p class="eyebrow">Chess AI</p>
+      <h2>Choose Your Mode</h2>
+      <p class="welcome-copy">Play a full chess game, challenge the AI, or train with best-move puzzles. Everything runs in the browser.</p>
+      <div class="welcome-actions">
+        <button id="welcomeAiBtn" type="button">Player vs AI</button>
+        <button id="welcomePvpBtn" type="button">Player vs Player</button>
+        <button id="welcomePuzzleBtn" type="button">Puzzle Trainer</button>
+      </div>
+      <div class="welcome-notes">
+        <div><strong>AI</strong><span>Minimax, alpha-beta pruning, piece-square tables</span></div>
+        <div><strong>Controls</strong><span>Click a piece, then click a legal square. T changes theme. R opens this menu.</span></div>
+        <div><strong>Assets</strong><span>Uses your PNG files from the assets folder.</span></div>
+      </div>
+    </div>
+  `;
+  document.body.append(welcome);
+
   els.progress = document.querySelector("#progressValue");
   els.puzzleMode = document.querySelector("#puzzleModeBtn");
   els.aiMode = document.querySelector("#aiModeBtn");
@@ -298,6 +322,7 @@ function injectTrainingUi() {
   els.daily = document.querySelector("#dailyBtn");
   els.adaptive = document.querySelector("#adaptiveBtn");
   els.review = document.querySelector("#reviewBtn");
+  els.menu = document.querySelector("#menuBtn");
   els.resetStats = document.querySelector("#resetStatsBtn");
   els.solution = document.querySelector("#solutionBtn");
   els.results = document.querySelector("#resultsModal");
@@ -308,6 +333,10 @@ function injectTrainingUi() {
   els.finalRating = document.querySelector("#finalRating");
   els.finalWeakness = document.querySelector("#finalWeakness");
   els.restart = document.querySelector("#restartBtn");
+  els.welcome = document.querySelector("#welcomeScreen");
+  els.welcomeAi = document.querySelector("#welcomeAiBtn");
+  els.welcomePvp = document.querySelector("#welcomePvpBtn");
+  els.welcomePuzzle = document.querySelector("#welcomePuzzleBtn");
 
   els.solution.addEventListener("click", revealSolution);
   els.restart.addEventListener("click", restartTraining);
@@ -321,7 +350,11 @@ function injectTrainingUi() {
   els.daily.addEventListener("click", startDailyPuzzle);
   els.adaptive.addEventListener("click", startAdaptiveDrill);
   els.review.addEventListener("click", startReviewMode);
+  els.menu.addEventListener("click", showWelcomeScreen);
   els.resetStats.addEventListener("click", resetLifetimeStats);
+  els.welcomeAi.addEventListener("click", () => startPlayMode("ai"));
+  els.welcomePvp.addEventListener("click", () => startPlayMode("pvp"));
+  els.welcomePuzzle.addEventListener("click", () => startPuzzleMode());
 }
 
 function startTimer() {
@@ -388,6 +421,13 @@ function setTheme(theme) {
   document.body.dataset.theme = state.theme;
   if (els.themeSelect) els.themeSelect.value = state.theme;
   saveStoredStats();
+  if (state.game) render();
+}
+
+function cycleTheme() {
+  const keys = Object.keys(THEMES);
+  const index = keys.indexOf(state.theme);
+  setTheme(keys[(index + 1) % keys.length]);
 }
 
 function currentPuzzleSet() {
@@ -851,6 +891,7 @@ function computeBestMove() {
 
 function loadPuzzle(index = state.puzzleIndex) {
   state.mode = "puzzle";
+  hideWelcomeScreen();
   const puzzleSet = currentPuzzleSet();
   if (!puzzleSet.length) {
     setMessage("No missed puzzles to review yet.", "");
@@ -883,6 +924,7 @@ function loadPuzzle(index = state.puzzleIndex) {
 function startPuzzleMode() {
   state.mode = "puzzle";
   state.aiThinking = false;
+  state.menuOpen = false;
   state.dailyMode = false;
   state.reviewMode = false;
   setActiveModeButton("puzzle");
@@ -892,6 +934,7 @@ function startPuzzleMode() {
 function startPlayMode(mode) {
   state.mode = mode;
   state.aiThinking = false;
+  state.menuOpen = false;
   state.game = parseFen(START_FEN);
   state.selected = null;
   state.legalTargets = [];
@@ -903,6 +946,7 @@ function startPlayMode(mode) {
   state.timerId = null;
 
   setActiveModeButton(mode);
+  hideWelcomeScreen();
   els.title.textContent = mode === "ai" ? "Player vs AI" : "Player vs Player";
   els.meta.textContent = mode === "ai"
     ? "Play White against the chess engine. The AI replies as Black."
@@ -915,6 +959,19 @@ function startPlayMode(mode) {
   renderAttempts();
   updateTrainingStats();
   render();
+}
+
+function showWelcomeScreen() {
+  state.menuOpen = true;
+  state.aiThinking = false;
+  window.clearInterval(state.timerId);
+  state.timerId = null;
+  if (els.welcome) els.welcome.classList.remove("hidden");
+}
+
+function hideWelcomeScreen() {
+  state.menuOpen = false;
+  if (els.welcome) els.welcome.classList.add("hidden");
 }
 
 function setActiveModeButton(mode) {
@@ -997,6 +1054,7 @@ function coordinateLabel(row, col) {
 }
 
 function handleSquareClick(row, col) {
+  if (state.menuOpen) return;
   if (state.aiThinking) return;
   if (state.mode === "puzzle" && (state.locked || state.finalShown)) return;
   if (state.mode === "ai" && state.game.turn !== state.playerColor) return;
@@ -1273,6 +1331,8 @@ function restartTraining() {
 }
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "r" || event.key === "R") showWelcomeScreen();
+  if (event.key === "t" || event.key === "T") cycleTheme();
   if (event.key === "n" || event.key === "N") loadPuzzle(state.puzzleIndex + 1);
   if (event.key === "p" || event.key === "P") loadPuzzle(state.puzzleIndex - 1);
   if (event.key === "f" || event.key === "F") {
@@ -1292,5 +1352,5 @@ document.addEventListener("keydown", (event) => {
 loadStoredStats();
 injectTrainingUi();
 setTheme(state.theme);
-loadPuzzle(0);
+showWelcomeScreen();
 
