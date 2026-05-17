@@ -5,755 +5,1548 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chess AI</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; font-family: 'Georgia', serif; color: #e8d5b7; min-height: 100vh; overflow-x: hidden; }
+/* ================================================================
+   CHESS AI — Complete chess.com-inspired styles
+   ================================================================ */
+:root {
+  --light-sq:  #f0d9b5;
+  --dark-sq:   #b58863;
+  --select:    rgba(20,85,30,0.5);
+  --legal-dot: rgba(0,0,0,0.18);
+  --last-move: rgba(155,199,0,0.41);
+  --check-sq:  #e04040;
+  --hint-sq:   rgba(30,160,60,0.5);
 
-  /* ── WELCOME SCREEN ── */
-  #welcome {
-    min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 2rem;
-    background: radial-gradient(ellipse at 30% 20%, #16213e 0%, #1a1a2e 60%, #0f0f1a 100%);
-  }
-  .logo { font-size: 72px; margin-bottom: 0.5rem; filter: drop-shadow(0 4px 16px #0008); }
-  .title { font-size: 3rem; font-weight: 700; letter-spacing: 0.05em; color: #f0d080; text-shadow: 0 2px 16px #8860; }
-  .subtitle { font-size: 1rem; color: #a89070; margin: 0.5rem 0 2.5rem; letter-spacing: 0.15em; text-transform: uppercase; }
-  .modes { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2rem; }
-  .mode-card {
-    background: linear-gradient(135deg, #16213e 60%, #1a2a4a);
-    border: 1px solid #3a4a6a;
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
-    cursor: pointer;
-    transition: all 0.25s;
-    width: 220px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .mode-card::before {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, #f0d08018, transparent);
-    opacity: 0; transition: opacity 0.25s;
-  }
-  .mode-card:hover { border-color: #f0d080; transform: translateY(-4px); box-shadow: 0 8px 32px #f0d08030; }
-  .mode-card:hover::before { opacity: 1; }
-  .mode-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
-  .mode-title { font-size: 1.2rem; font-weight: 700; color: #f0d080; margin-bottom: 0.4rem; }
-  .mode-desc { font-size: 0.82rem; color: #8890a8; line-height: 1.5; }
-  .diff-select { margin-top: 1rem; }
-  .diff-select label { font-size: 0.8rem; color: #8890a8; margin-right: 0.5rem; }
-  .diff-select select {
-    background: #0f1a30; color: #f0d080; border: 1px solid #3a4a6a;
-    border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; cursor: pointer;
-  }
-  .features { display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center; margin-top: 1rem; }
-  .feat { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #6a7a9a; }
-  .feat span { font-size: 1rem; }
+  --bg:        #161512;
+  --surface:   #262421;
+  --surface2:  #302e2b;
+  --panel:     #1d1b19;
+  --border:    #3d3a37;
+  --text:      #e8e6e3;
+  --text-dim:  #a09880;
+  --text-mute: #6d6460;
+  --green:     #7fa650;
+  --green-dk:  #538a2c;
+  --red:       #c84b4b;
+  --blue:      #4d8bc9;
+  --gold:      #c9a227;
+}
 
-  /* ── GAME SCREEN ── */
-  #game { display: none; flex-direction: column; align-items: center; min-height: 100vh; padding: 1rem; background: #0f0f1a; }
-  .game-header { display: flex; align-items: center; gap: 1.5rem; width: 100%; max-width: 600px; margin-bottom: 1rem; }
-  .back-btn {
-    background: none; border: 1px solid #3a4a6a; color: #a89070;
-    border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; font-family: Georgia, serif;
-  }
-  .back-btn:hover { border-color: #f0d080; color: #f0d080; }
-  .game-info { flex: 1; }
-  .game-mode-label { font-size: 0.75rem; color: #6a7a9a; text-transform: uppercase; letter-spacing: 0.1em; }
-  .game-status { font-size: 1rem; color: #f0d080; font-weight: 600; }
-  .theme-btn {
-    background: none; border: 1px solid #3a4a6a; color: #a89070;
-    border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; font-family: Georgia, serif;
-  }
-  .theme-btn:hover { border-color: #8890a8; color: #c0c8d8; }
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; }
 
-  /* ── BOARD ── */
-  .board-wrap { position: relative; }
-  #board {
-    display: grid; grid-template-columns: repeat(8, 1fr);
-    width: 520px; height: 520px;
-    border: 3px solid #2a3a5a; border-radius: 4px;
-    box-shadow: 0 8px 48px #000a;
-    cursor: default; user-select: none;
-  }
-  .sq {
-    width: 65px; height: 65px; display: flex; align-items: center; justify-content: center;
-    font-size: 40px; position: relative; transition: background 0.1s;
-  }
-  .sq .piece { cursor: grab; transition: transform 0.05s; z-index: 1; line-height: 1; }
-  .sq .piece:active { cursor: grabbing; }
-  .sq.selected { outline: 3px solid #f0d080; outline-offset: -3px; }
-  .sq.legal::after {
-    content: ''; position: absolute; width: 24px; height: 24px;
-    background: #f0d08060; border-radius: 50%; pointer-events: none; z-index: 2;
-  }
-  .sq.legal.has-piece::after {
-    width: 100%; height: 100%; background: none;
-    border-radius: 0; border: 3px solid #f0d080; inset: 0;
-  }
-  .sq.last-from { box-shadow: inset 0 0 0 3px #c8a040; }
-  .sq.last-to   { box-shadow: inset 0 0 0 3px #c8a040; }
-  .sq.in-check  { box-shadow: inset 0 0 0 4px #e04040; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+button { font:inherit; cursor:pointer; border:none; }
+select { font:inherit; cursor:pointer; }
 
-  /* Coord labels */
-  .coords-files { display: flex; width: 520px; }
-  .coords-files span { width: 65px; text-align: center; font-size: 0.7rem; color: #6a7a9a; padding: 2px 0; }
-  .coords-ranks { position: absolute; left: -18px; top: 0; display: flex; flex-direction: column; height: 520px; }
-  .coords-ranks span { height: 65px; display: flex; align-items: center; font-size: 0.7rem; color: #6a7a9a; }
+/* ── WELCOME SCREEN ─────────────────────────────────────────── */
+#welcomeScreen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #161512 0%, #2a2520 100%);
+  z-index: 100; padding: 16px;
+}
+#welcomeScreen.hidden { display: none; }
 
-  .captured-row {
-    display: flex; gap: 2px; min-height: 32px; flex-wrap: wrap; align-items: center;
-    padding: 4px 0; width: 520px;
-  }
-  .captured-row .cp { font-size: 22px; opacity: 0.7; }
+.wcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 36px 40px;
+  width: min(700px, 100%);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+}
+.wcard-logo { font-size: 44px; margin-bottom: 6px; }
+.wcard h1 {
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 800; color: #fff;
+  letter-spacing: -0.02em; margin-bottom: 6px;
+}
+.wcard .tagline {
+  color: var(--text-dim); font-size: 0.95rem;
+  margin-bottom: 28px; line-height: 1.5;
+}
 
-  .move-log {
-    width: 520px; max-height: 100px; overflow-y: auto;
-    background: #12121e; border: 1px solid #1e2a3e; border-radius: 8px;
-    padding: 8px; margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 4px;
-  }
-  .move-log .ml { font-size: 0.72rem; color: #8890a8; padding: 2px 6px; border-radius: 4px; }
-  .move-log .ml.w { color: #e8d5b7; }
-  .move-log .ml.b { color: #a89070; }
+/* Mode cards */
+.mode-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 10px; margin-bottom: 22px;
+}
+.mode-card {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--text); transition: border-color .15s, background .15s;
+}
+.mode-card:hover { border-color: var(--green); background: #332e28; }
+.mode-card.active { border-color: var(--green); }
+.mode-card .mc-icon { font-size: 30px; }
+.mode-card .mc-name { font-weight: 700; font-size: 0.9rem; }
+.mode-card .mc-desc {
+  font-size: 0.73rem; color: var(--text-dim);
+  text-align: center; line-height: 1.35;
+}
 
-  /* Promotion dialog */
-  #promo-dialog {
-    display: none; position: fixed; inset: 0; background: #0008;
-    align-items: center; justify-content: center; z-index: 100;
-  }
-  #promo-dialog.show { display: flex; }
-  .promo-box {
-    background: #16213e; border: 1px solid #3a4a6a; border-radius: 12px;
-    padding: 1.5rem; text-align: center;
-  }
-  .promo-box h3 { color: #f0d080; margin-bottom: 1rem; }
-  .promo-pieces { display: flex; gap: 12px; justify-content: center; }
-  .promo-piece {
-    font-size: 48px; cursor: pointer; padding: 8px; border-radius: 8px;
-    border: 2px solid transparent; transition: all 0.2s;
-  }
-  .promo-piece:hover { border-color: #f0d080; background: #1e3050; }
+/* Options row */
+.options-row {
+  display: flex; align-items: center; gap: 24px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 16px;
+  margin-bottom: 20px;
+}
+.opt-group { display:flex; align-items:center; gap:8px; }
+.opt-group label { font-size:0.8rem; color:var(--text-dim); font-weight:700; white-space:nowrap; }
+.opt-group select {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text);
+  padding: 5px 10px; min-height: 32px;
+}
 
-  /* Board Themes */
-  #game.t0 .sq.light { background: #f0d9b5; }
-  #game.t0 .sq.dark  { background: #b58863; }
-  #game.t1 .sq.light { background: #eeeed2; }
-  #game.t1 .sq.dark  { background: #769656; }
-  #game.t2 .sq.light { background: #dee3e6; }
-  #game.t2 .sq.dark  { background: #8ca2ad; }
-  #game.t3 .sq.light { background: #d8cfba; }
-  #game.t3 .sq.dark  { background: #7d6e5a; }
+/* Feature chips */
+.feat-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+}
+.feat-chip {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 0.75rem; color: var(--text-dim);
+  display: flex; align-items: center; gap: 5px;
+}
+.feat-chip span { color: var(--green); }
 
-  /* Responsive */
-  @media (max-width: 580px) {
-    #board { width: 320px; height: 320px; }
-    .sq { width: 40px; height: 40px; font-size: 26px; }
-    .coords-files { width: 320px; }
-    .coords-files span { width: 40px; }
-    .coords-ranks { height: 320px; }
-    .coords-ranks span { height: 40px; }
-    .captured-row, .move-log { width: 320px; }
-    .sq.legal::after { width: 16px; height: 16px; }
-  }
+/* Start button */
+.start-btn {
+  width: 100%; min-height: 48px;
+  background: var(--green); color: #fff;
+  font-size: 1rem; font-weight: 800;
+  border-radius: 6px; transition: background .15s;
+}
+.start-btn:hover { background: var(--green-dk); }
+
+/* ── GAME SHELL ─────────────────────────────────────────────── */
+#gameShell {
+  display: none;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 100vh;
+  padding: 16px;
+}
+#gameShell.visible { display: flex; }
+
+/* ── EVAL BAR ───────────────────────────────────────────────── */
+.eval-bar-wrap {
+  display: flex; flex-direction: column;
+  width: 20px; height: 560px;
+  border-radius: 4px; overflow: hidden;
+  flex-shrink: 0; position: relative;
+  border: 1px solid var(--border);
+}
+.eval-black {
+  background: #3a3532; width: 100%;
+  height: 50%; transition: height 0.6s ease;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 4px;
+}
+.eval-white {
+  background: #ddd8d0; width: 100%; flex: 1;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 4px;
+}
+.eval-label {
+  font-size: 8px; font-weight: 800;
+  writing-mode: horizontal-tb; color: var(--text-mute);
+}
+
+/* ── BOARD AREA ─────────────────────────────────────────────── */
+.board-col {
+  display: flex; flex-direction: column;
+  gap: 4px;
+}
+
+/* Player bar */
+.player-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 12px;
+  height: 44px; transition: border-color .2s;
+}
+.player-bar.active-turn { border-color: var(--green); }
+.pav {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.pav.white { background: #f0ece4; color: #222; }
+.pav.black { background: #2a2826; color: #f0ece4; border: 1px solid #555; }
+.pname  { font-weight: 700; font-size: 0.88rem; }
+.prating{ font-size: 0.72rem; color: var(--text-dim); margin-left: 2px; }
+.pcap   {
+  display: flex; flex-wrap: wrap; gap: 1px;
+  align-items: center; margin-left: auto;
+  max-width: 120px;
+}
+.pcap-piece { font-size: 13px; line-height: 1; }
+.padv { font-size: 0.72rem; font-weight: 700; color: var(--text-dim); margin-left: 4px; }
+
+/* Board wrapper with rank/file labels */
+.board-with-coords {
+  display: flex; flex-direction: column;
+}
+.board-row { display: flex; }
+.rank-labels {
+  display: flex; flex-direction: column;
+  justify-content: space-around;
+  width: 16px; padding: 0 2px;
+}
+.rank-labels span {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-mute); text-align: center;
+  height: 70px; display: flex; align-items: center;
+}
+.file-labels {
+  display: flex; margin-left: 16px;
+}
+.file-labels span {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-mute); text-align: center;
+  width: 70px;
+}
+
+/* THE BOARD */
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 70px);
+  grid-template-rows:    repeat(8, 70px);
+  border: 2px solid #111;
+  flex-shrink: 0;
+}
+.sq {
+  width: 70px; height: 70px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  transition: background 0.05s;
+}
+.sq.light { background: var(--light-sq); }
+.sq.dark  { background: var(--dark-sq); }
+.sq.sel   { background: var(--select) !important; }
+.sq.last-from,
+.sq.last-to  { box-shadow: inset 0 0 0 100px var(--last-move); }
+.sq.in-check { background: radial-gradient(circle, rgba(255,0,0,0.55) 0%, var(--check-sq) 100%) !important; }
+.sq.hint     { box-shadow: inset 0 0 0 100px var(--hint-sq); }
+
+/* Legal move indicators */
+.sq.legal-move::after {
+  content: '';
+  position: absolute;
+  width: 30%; height: 30%;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.18);
+  pointer-events: none; z-index: 2;
+}
+.sq.legal-cap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.18) 60%);
+  pointer-events: none; z-index: 2;
+}
+
+/* ── PIECES — high-contrast white vs black ─────────────────── */
+.piece {
+  width: 88%; height: 88%;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; user-select: none;
+  position: relative; z-index: 1;
+}
+.piece img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.6));
+  pointer-events: none;
+}
+/* Unicode fallback — clearly distinct white vs black */
+.piece.wp .pu {  /* white pieces */
+  color: #fff8ef;
+  text-shadow:
+    0 0 0 #fff8ef,
+    -1.5px -1.5px 0 #000,
+     1.5px -1.5px 0 #000,
+    -1.5px  1.5px 0 #000,
+     1.5px  1.5px 0 #000,
+     0 3px 6px rgba(0,0,0,0.7);
+}
+.piece.bp .pu {  /* black pieces */
+  color: #1a1715;
+  text-shadow:
+    0 0 0 #1a1715,
+    -1.5px -1.5px 0 #e8e0d0,
+     1.5px -1.5px 0 #e8e0d0,
+    -1.5px  1.5px 0 #e8e0d0,
+     1.5px  1.5px 0 #e8e0d0,
+     0 3px 6px rgba(0,0,0,0.5);
+}
+.pu {
+  font-size: 46px; line-height: 1;
+  display: block; pointer-events: none;
+}
+
+/* ── SIDE PANEL ─────────────────────────────────────────────── */
+.side-panel {
+  display: flex; flex-direction: column;
+  gap: 8px; width: 272px; flex-shrink: 0;
+  align-self: center;
+}
+.scard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+}
+.scard-title {
+  font-size: 0.68rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-mute); margin-bottom: 10px;
+}
+
+/* Mode tabs */
+.mtabs { display: flex; gap: 4px; margin-bottom: 0; }
+.mtab {
+  flex: 1; min-height: 30px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text-dim);
+  font-size: 0.75rem; font-weight: 700;
+  transition: all .12s;
+}
+.mtab.active, .mtab:hover {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+
+/* Status */
+.status-msg {
+  font-size: 0.95rem; font-weight: 700;
+  line-height: 1.4; min-height: 2.4em;
+  color: var(--text);
+}
+.status-msg.good { color: var(--green); }
+.status-msg.bad  { color: var(--red); }
+.status-msg.warn { color: var(--gold); }
+
+/* Buttons */
+.btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.btn-grid.one-col { grid-template-columns: 1fr; }
+.gbtn {
+  min-height: 34px; border-radius: 4px;
+  font-size: 0.78rem; font-weight: 700;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); transition: all .12s; padding: 0 8px;
+}
+.gbtn:hover { border-color: var(--text-dim); }
+.gbtn.green { background: var(--green); border-color: var(--green); color: #fff; }
+.gbtn.green:hover { background: var(--green-dk); }
+.gbtn.blue  { background: var(--blue);  border-color: var(--blue);  color: #fff; }
+.gbtn.red   { background: var(--red);   border-color: var(--red);   color: #fff; }
+.gbtn.wide  { grid-column: 1/-1; }
+.gbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Slider */
+.slider-wrap {
+  display: flex; align-items: center; gap: 8px;
+}
+.slider-wrap label { font-size: 0.75rem; color: var(--text-dim); font-weight: 700; }
+.slider-wrap input[type=range] { flex: 1; accent-color: var(--green); }
+.slider-wrap .sv { font-size: 0.78rem; font-weight: 800; min-width: 18px; text-align: right; }
+
+/* Eval numbers */
+.eval-num {
+  font-size: 1.4rem; font-weight: 800; color: var(--text);
+  display: flex; align-items: baseline; gap: 6px;
+}
+.eval-num small { font-size: 0.7rem; color: var(--text-dim); font-weight: 700; }
+
+/* Move list */
+.move-scroll { max-height: 150px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.move-table { width: 100%; border-collapse: collapse; }
+.move-table td { padding: 3px 5px; font-size: 0.8rem; }
+.move-table td:first-child { color: var(--text-mute); width: 24px; font-weight: 700; }
+.move-table .wm { color: var(--text); font-weight: 600; }
+.move-table .bm { color: var(--text-dim); }
+.move-table tr:hover td { background: var(--surface2); }
+
+/* ── PUZZLE PANEL ───────────────────────────────────────────── */
+.pz-badge {
+  display: inline-block;
+  background: var(--gold); color: #000;
+  font-size: 0.62rem; font-weight: 800;
+  padding: 2px 7px; border-radius: 3px;
+  text-transform: uppercase; margin-right: 6px;
+}
+.pz-rating { float: right; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; }
+.pz-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 6px; }
+.pz-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.45; margin-bottom: 10px; }
+
+.pz-progress { display: flex; gap: 5px; margin-bottom: 10px; }
+.pdot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  transition: background .2s;
+}
+.pdot.ok  { background: var(--green); border-color: var(--green); }
+.pdot.bad { background: var(--red);   border-color: var(--red); }
+
+.pz-feedback {
+  font-size: 0.82rem; font-weight: 700;
+  padding: 8px 10px; border-radius: 4px; margin-bottom: 8px;
+  min-height: 36px; line-height: 1.4;
+}
+.pz-feedback.ok   { background: #1a3a1a; color: #7fc97f; }
+.pz-feedback.bad  { background: #3a1a1a; color: #f08080; }
+.pz-feedback.info { background: var(--surface2); color: var(--text-dim); }
+
+.pz-nav { display: flex; gap: 6px; }
+.pz-nav button { flex: 1; min-height: 32px; border-radius: 4px; font-size: 0.78rem; font-weight: 700; }
+
+/* ── PROMOTION OVERLAY ──────────────────────────────────────── */
+#promoOverlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  place-items: center; z-index: 200;
+}
+#promoOverlay.show { display: grid; }
+.promo-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px 24px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.promo-box h3 { color: var(--text); margin-bottom: 14px; font-size: 1rem; font-weight: 700; }
+.promo-row { display: flex; gap: 10px; }
+.promo-sq {
+  width: 76px; height: 76px;
+  background: var(--surface2); border: 2px solid var(--border);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color .15s;
+  font-size: 48px;
+}
+.promo-sq:hover { border-color: var(--green); background: #2a3a2a; }
+.promo-sq img { width: 58px; height: 58px; object-fit: contain; }
+
+/* ── POST-GAME ANALYSIS ─────────────────────────────────────── */
+#analysisOverlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  place-items: center; z-index: 150;
+  overflow-y: auto; padding: 24px;
+}
+#analysisOverlay.show { display: grid; }
+.analysis-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 28px 30px;
+  width: min(580px,100%);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.7);
+}
+.analysis-box h2 { font-size: 1.7rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.analysis-box .a-sub { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 20px; }
+
+.a-stats {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-bottom: 20px;
+}
+.a-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 10px 12px;
+}
+.a-stat span { display:block; font-size:0.65rem; font-weight:800; text-transform:uppercase; color:var(--text-mute); margin-bottom:3px; }
+.a-stat strong { font-size:1.15rem; }
+
+.a-sec { margin-bottom: 18px; }
+.a-sec h3 { font-size:0.68rem; font-weight:800; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-mute); margin-bottom:10px; }
+
+.mistake-row {
+  background: var(--surface2); border-radius: 4px;
+  border-left: 3px solid var(--red);
+  padding: 9px 12px; margin-bottom: 7px;
+  font-size: 0.83rem; line-height: 1.5;
+}
+.mistake-row.blunder { border-color: #ff5555; }
+.mistake-row.mistake { border-color: var(--gold); }
+.mr-head { font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.mr-note { color: var(--text-dim); }
+.mr-tag {
+  font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; margin-left: 6px;
+}
+.blunder .mr-tag { background: var(--red);  color: #fff; }
+.mistake .mr-tag { background: var(--gold); color: #000; }
+
+.coach-tip {
+  background: #192a19; border: 1px solid #2d5a2d;
+  border-radius: 5px; padding: 12px 14px;
+  font-size: 0.85rem; line-height: 1.55; color: #9acd9a;
+}
+
+.a-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.a-actions button {
+  min-height: 42px; border-radius: 5px;
+  font-weight: 700; font-size: 0.88rem; border: none;
+}
+.a-actions .ag { background: var(--green); color: #fff; }
+.a-actions .ag:hover { background: var(--green-dk); }
+.a-actions .as { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.a-actions .as:hover { border-color: var(--text-dim); }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 1080px) {
+  #gameShell { flex-wrap: wrap; align-items: flex-start; padding-top: 12px; }
+  .eval-bar-wrap { display: none; }
+  .side-panel { width: 100%; max-width: 560px; flex-direction: row; flex-wrap: wrap; }
+  .side-panel .scard { flex: 1; min-width: 200px; }
+}
+@media (max-width: 660px) {
+  .board { grid-template-columns: repeat(8,11vw); grid-template-rows: repeat(8,11vw); }
+  .sq { width: 11vw; height: 11vw; }
+  .rank-labels span { height: 11vw; }
+  .file-labels span { width: 11vw; }
+  .pu { font-size: 8vw; }
+  .mode-grid { grid-template-columns: 1fr 1fr; }
+  .a-stats { grid-template-columns: repeat(2,1fr); }
+  .a-actions { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 
-<!-- ═══ WELCOME SCREEN ═══ -->
-<div id="welcome">
-  <div class="logo">♟</div>
-  <div class="title">Chess AI</div>
-  <div class="subtitle">Choose your battle</div>
+<!-- ═══════════ WELCOME SCREEN ═══════════ -->
+<div id="welcomeScreen">
+  <div class="wcard">
+    <div class="wcard-logo">♟</div>
+    <h1>Chess AI</h1>
+    <p class="tagline">Play against the AI, challenge a friend, or sharpen your tactics with puzzles. Runs entirely in your browser.</p>
 
-  <div class="modes">
-    <div class="mode-card" onclick="startGame('pvp')">
-      <div class="mode-icon">👥</div>
-      <div class="mode-title">Player vs Player</div>
-      <div class="mode-desc">Two players share one board. Pass and play locally.</div>
+    <div class="mode-grid">
+      <button class="mode-card active" id="wm-pvc" onclick="selectMode('pvc')">
+        <span class="mc-icon">🤖</span>
+        <span class="mc-name">Player vs AI</span>
+        <span class="mc-desc">Face the chess engine with alpha-beta pruning</span>
+      </button>
+      <button class="mode-card" id="wm-pvp" onclick="selectMode('pvp')">
+        <span class="mc-icon">👥</span>
+        <span class="mc-name">Player vs Player</span>
+        <span class="mc-desc">Pass-and-play locally with a friend</span>
+      </button>
+      <button class="mode-card" id="wm-puzzle" onclick="selectMode('puzzle')">
+        <span class="mc-icon">🧩</span>
+        <span class="mc-name">Puzzles</span>
+        <span class="mc-desc">Solve mid-game tactics like chess.com</span>
+      </button>
     </div>
-    <div class="mode-card" onclick="startGame('pvc')">
-      <div class="mode-icon">🤖</div>
-      <div class="mode-title">Player vs AI</div>
-      <div class="mode-desc">Face a minimax engine with alpha-beta pruning.</div>
-      <div class="diff-select">
-        <label>Depth:</label>
-        <select id="depth-sel" onclick="event.stopPropagation()">
-          <option value="2">Easy (2)</option>
-          <option value="3" selected>Medium (3)</option>
-          <option value="4">Hard (4)</option>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <label>AI Difficulty</label>
+        <select id="diffSelect">
+          <option value="2">Easy</option>
+          <option value="3" selected>Medium</option>
+          <option value="4">Hard</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label>Board Theme</label>
+        <select id="welcomeTheme" onchange="pendingTheme=this.value">
+          <option value="classic">Classic</option>
+          <option value="ocean">Ocean</option>
+          <option value="walnut">Walnut</option>
+          <option value="green">Green</option>
         </select>
       </div>
     </div>
-  </div>
 
-  <div class="features">
-    <div class="feat"><span>✦</span> Full legal moves</div>
-    <div class="feat"><span>✦</span> Castling &amp; en passant</div>
-    <div class="feat"><span>✦</span> Pawn promotion</div>
-    <div class="feat"><span>✦</span> 4 board themes</div>
-    <div class="feat"><span>✦</span> Alpha-Beta AI</div>
-    <div class="feat"><span>✦</span> Move history</div>
-  </div>
-</div>
-
-<!-- ═══ GAME SCREEN ═══ -->
-<div id="game" class="t0">
-  <div class="game-header">
-    <button class="back-btn" onclick="goMenu()">← Menu</button>
-    <div class="game-info">
-      <div class="game-mode-label" id="mode-label">Player vs Player</div>
-      <div class="game-status" id="status">White to move</div>
+    <div class="feat-row">
+      <div class="feat-chip"><span>✓</span> Full legal moves</div>
+      <div class="feat-chip"><span>✓</span> Castling &amp; en passant</div>
+      <div class="feat-chip"><span>✓</span> Pawn promotion</div>
+      <div class="feat-chip"><span>✓</span> Live eval bar</div>
+      <div class="feat-chip"><span>✓</span> Post-game analysis</div>
+      <div class="feat-chip"><span>✓</span> Tactics puzzles</div>
     </div>
-    <button class="theme-btn" onclick="cycleTheme()">🎨 Theme</button>
+
+    <button class="start-btn" onclick="launchGame()">Start Game →</button>
   </div>
-
-  <div class="captured-row" id="cap-black"></div>
-
-  <div class="board-wrap">
-    <div class="coords-ranks" id="rank-labels"></div>
-    <div id="board"></div>
-  </div>
-
-  <div class="coords-files" id="file-labels"></div>
-  <div class="captured-row" id="cap-white"></div>
-  <div class="move-log" id="move-log"></div>
 </div>
 
-<!-- ═══ PROMOTION DIALOG ═══ -->
-<div id="promo-dialog">
+
+<!-- ═══════════ GAME SHELL ═══════════ -->
+<div id="gameShell">
+
+  <!-- Eval bar -->
+  <div class="eval-bar-wrap" id="evalBar">
+    <div class="eval-black" id="evalBlack" style="height:50%">
+      <span class="eval-label" id="evalTopLabel"></span>
+    </div>
+    <div class="eval-white">
+      <span class="eval-label" id="evalBotLabel">0.0</span>
+    </div>
+  </div>
+
+  <!-- Board column -->
+  <div class="board-col">
+
+    <!-- Top player bar (Black by default) -->
+    <div class="player-bar" id="topBar">
+      <div class="pav black">♟</div>
+      <div>
+        <span class="pname">Black</span>
+        <span class="prating" id="topRating"></span>
+      </div>
+      <div class="pcap" id="topCap"></div>
+      <span class="padv" id="topAdv"></span>
+    </div>
+
+    <!-- Board with coordinate labels -->
+    <div class="board-with-coords">
+      <div class="board-row">
+        <div class="rank-labels" id="rankLabels"></div>
+        <div class="board" id="board"></div>
+      </div>
+      <div class="file-labels" id="fileLabels"></div>
+    </div>
+
+    <!-- Bottom player bar (White by default) -->
+    <div class="player-bar" id="bottomBar">
+      <div class="pav white">♙</div>
+      <div>
+        <span class="pname" id="bottomName">You (White)</span>
+        <span class="prating" id="bottomRating"></span>
+      </div>
+      <div class="pcap" id="bottomCap"></div>
+      <span class="padv" id="bottomAdv"></span>
+    </div>
+
+  </div><!-- /board-col -->
+
+
+  <!-- Side panel -->
+  <div class="side-panel">
+
+    <!-- Mode tabs -->
+    <div class="scard" style="padding:10px">
+      <div class="mtabs">
+        <button class="mtab active" id="tabPvc" onclick="switchMode('pvc')">Vs AI</button>
+        <button class="mtab"        id="tabPvp" onclick="switchMode('pvp')">P vs P</button>
+        <button class="mtab"        id="tabPuzzle" onclick="switchMode('puzzle')">Puzzles</button>
+        <button class="mtab"        onclick="goMenu()" style="flex:0;padding:0 10px">☰</button>
+      </div>
+    </div>
+
+    <!-- Status card (game modes) -->
+    <div class="scard" id="statusCard">
+      <div class="scard-title">Status</div>
+      <div class="status-msg" id="statusMsg">White to move</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="scard" id="controlsCard">
+      <div class="scard-title">Controls</div>
+      <div class="btn-grid">
+        <button class="gbtn blue wide" id="hintBtn" onclick="showHint()">💡 Hint</button>
+        <button class="gbtn" onclick="flipBoard()">↕ Flip</button>
+        <button class="gbtn" onclick="resetGame()">↺ Reset</button>
+        <button class="gbtn wide" onclick="goMenu()">← Menu</button>
+      </div>
+    </div>
+
+    <!-- Engine settings -->
+    <div class="scard" id="engineCard">
+      <div class="scard-title">Engine</div>
+      <div class="slider-wrap" style="margin-bottom:10px">
+        <label>Depth</label>
+        <input type="range" id="depthSlider" min="1" max="4" value="3" oninput="aiDepth=+this.value;document.getElementById('depthVal').textContent=this.value">
+        <span class="sv" id="depthVal">3</span>
+      </div>
+      <div class="scard-title" style="margin-bottom:6px">Theme</div>
+      <select id="themeSelect" onchange="setTheme(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;min-height:30px">
+        <option value="classic">Classic</option>
+        <option value="ocean">Ocean</option>
+        <option value="walnut">Walnut</option>
+        <option value="green">Green</option>
+      </select>
+    </div>
+
+    <!-- Eval display -->
+    <div class="scard" id="evalCard">
+      <div class="scard-title">Evaluation</div>
+      <div class="eval-num"><span id="evalNum">0.0</span><small>centipawns</small></div>
+    </div>
+
+    <!-- Move history -->
+    <div class="scard" id="moveCard" style="flex:1">
+      <div class="scard-title">Moves</div>
+      <div class="move-scroll">
+        <table class="move-table"><tbody id="moveList"></tbody></table>
+      </div>
+    </div>
+
+    <!-- Puzzle panel (hidden by default) -->
+    <div class="scard" id="puzzleCard" style="display:none">
+      <div style="margin-bottom:8px">
+        <span class="pz-badge" id="pzTag">Tactic</span>
+        <span class="pz-rating" id="pzRating">★ 1000</span>
+      </div>
+      <div class="pz-name" id="pzName">Puzzle</div>
+      <div class="pz-desc" id="pzDesc">Find the best move.</div>
+      <div class="pz-progress" id="pzProgress"></div>
+      <div class="pz-feedback info" id="pzFeedback">Find the best move for this position.</div>
+      <div class="pz-nav">
+        <button class="gbtn" onclick="prevPuzzle()">◀ Prev</button>
+        <button class="gbtn" onclick="retryPuzzle()">↺ Retry</button>
+        <button class="gbtn" onclick="showPuzzleSolution()">👁 Show</button>
+        <button class="gbtn green" id="pzNext" onclick="nextPuzzle()" disabled>Next ▶</button>
+      </div>
+    </div>
+
+  </div><!-- /side-panel -->
+</div><!-- /gameShell -->
+
+
+<!-- ═══════════ PROMOTION OVERLAY ═══════════ -->
+<div id="promoOverlay">
   <div class="promo-box">
-    <h3>Promote pawn</h3>
-    <div class="promo-pieces" id="promo-pieces"></div>
+    <h3>Promote your pawn</h3>
+    <div class="promo-row" id="promoRow"></div>
   </div>
 </div>
+
+
+<!-- ═══════════ POST-GAME ANALYSIS ═══════════ -->
+<div id="analysisOverlay">
+  <div class="analysis-box">
+    <h2 id="aTitle">Game Over</h2>
+    <p class="a-sub" id="aSub"></p>
+
+    <div class="a-stats">
+      <div class="a-stat"><span>Your Moves</span><strong id="sMoves">0</strong></div>
+      <div class="a-stat"><span>Mistakes</span><strong id="sMistakes">0</strong></div>
+      <div class="a-stat"><span>Blunders</span><strong id="sBlunders">0</strong></div>
+      <div class="a-stat"><span>Captures</span><strong id="sCaptures">0</strong></div>
+      <div class="a-stat"><span>Checks Given</span><strong id="sChecks">0</strong></div>
+      <div class="a-stat"><span>Pieces Lost</span><strong id="sLost">0</strong></div>
+    </div>
+
+    <div class="a-sec">
+      <h3>Key Mistakes</h3>
+      <div id="mistakeList"></div>
+    </div>
+
+    <div class="a-sec">
+      <h3>Coach Tip</h3>
+      <div class="coach-tip" id="coachTip"></div>
+    </div>
+
+    <div class="a-actions">
+      <button class="ag" onclick="closeAnalysis();resetGame()">Play Again</button>
+      <button class="as" onclick="closeAnalysis();goMenu()">Main Menu</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  CHESS ENGINE
-// ═══════════════════════════════════════════════════════
+'use strict';
+// ================================================================
+//  CHESS AI — All-in-one JavaScript
+// ================================================================
 
-const PIECES = {
+// ── PIECE ASSETS ─────────────────────────────────────────────────
+const PNG = {
+  wP:'assets/white_pawn.png',   wN:'assets/white_knight.png',
+  wB:'assets/white_bishop.png', wR:'assets/white_rook.png',
+  wQ:'assets/white_queen.png',  wK:'assets/white_king.png',
+  bP:'assets/black_pawn.png',   bN:'assets/black_knight.png',
+  bB:'assets/black_bishop.png', bR:'assets/black_rook.png',
+  bQ:'assets/black_queen.png',  bK:'assets/black_king.png',
+};
+const UNI = {
   wP:'♙', wN:'♘', wB:'♗', wR:'♖', wQ:'♕', wK:'♔',
-  bP:'♟', bN:'♞', bB:'♝', bR:'♜', bQ:'♛', bK:'♚'
+  bP:'♟', bN:'♞', bB:'♝', bR:'♜', bQ:'♛', bK:'♚',
 };
+const imgOk = {};
 
-const PIECE_VALUES = { Q: 900, R: 500, B: 330, N: 320, P: 100, K: 20000 };
+(function preload() {
+  Object.entries(PNG).forEach(([k,src])=>{
+    const i=new Image();
+    i.onload =()=>{ imgOk[k]=true; };
+    i.onerror=()=>{ imgOk[k]=false; };
+    i.src=src;
+  });
+})();
 
-// Piece-Square Tables (index 0 = a8, index 63 = h1 — white's perspective)
-const PST = {
-  P: [
-     0,  0,  0,  0,  0,  0,  0,  0,
-    50, 50, 50, 50, 50, 50, 50, 50,
-    10, 10, 20, 30, 30, 20, 10, 10,
-     5,  5, 10, 25, 25, 10,  5,  5,
-     0,  0,  0, 20, 20,  0,  0,  0,
-     5, -5,-10,  0,  0,-10, -5,  5,
-     5, 10, 10,-20,-20, 10, 10,  5,
-     0,  0,  0,  0,  0,  0,  0,  0
-  ],
-  N: [-50,-40,-30,-30,-30,-30,-40,-50,-40,-20, 0, 0, 0, 0,-20,-40,-30, 0,10,15,15,10, 0,-30,-30, 5,15,20,20,15, 5,-30,-30, 0,15,20,20,15, 0,-30,-30, 5,10,15,15,10, 5,-30,-40,-20, 0, 5, 5, 0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50],
-  B: [-20,-10,-10,-10,-10,-10,-10,-20,-10, 0, 0, 0, 0, 0, 0,-10,-10, 0, 5,10,10, 5, 0,-10,-10, 5, 5,10,10, 5, 5,-10,-10, 0,10,10,10,10, 0,-10,-10,10,10,10,10,10,10,-10,-10, 5, 0, 0, 0, 0, 5,-10,-20,-10,-10,-10,-10,-10,-10,-20],
-  R: [0, 0, 0, 0, 0, 0, 0, 0, 5,10,10,10,10,10,10, 5,-5, 0, 0, 0, 0, 0, 0,-5,-5, 0, 0, 0, 0, 0, 0,-5,-5, 0, 0, 0, 0, 0, 0,-5,-5, 0, 0, 0, 0, 0, 0,-5,-5, 0, 0, 0, 0, 0, 0,-5, 0, 0, 0, 5, 5, 0, 0, 0],
-  Q: [-20,-10,-10,-5,-5,-10,-10,-20,-10, 0, 0, 0, 0, 0, 0,-10,-10, 0, 5, 5, 5, 5, 0,-10,-5, 0, 5, 5, 5, 5, 0,-5, 0, 0, 5, 5, 5, 5, 0,-5,-10, 5, 5, 5, 5, 5, 0,-10,-10, 0, 5, 0, 0, 0, 0,-10,-20,-10,-10,-5,-5,-10,-10,-20],
-  K: [-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,-20,-30,-30,-40,-40,-30,-30,-20,-10,-20,-20,-20,-20,-20,-20,-10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20]
-};
+function makePiece(pc) {
+  const isW = pc[0]==='w';
+  const wrap = document.createElement('div');
+  wrap.className = 'piece '+(isW?'wp':'bp');
 
-function pstScore(type, color, sq) {
-  const idx = color === 'w' ? sq : 63 - sq;
-  return (PST[type] || new Array(64).fill(0))[idx];
+  if(imgOk[pc]===false) {
+    // Use styled Unicode
+    const s=document.createElement('span');
+    s.className='pu'; s.textContent=UNI[pc];
+    wrap.appendChild(s);
+  } else {
+    const img=document.createElement('img');
+    img.src=PNG[pc]; img.alt=pc;
+    img.onerror=()=>{
+      imgOk[pc]=false;
+      const s=document.createElement('span');
+      s.className='pu'; s.textContent=UNI[pc];
+      img.replaceWith(s);
+    };
+    wrap.appendChild(img);
+  }
+  return wrap;
 }
 
-class ChessGame {
-  constructor() { this.reset(); }
+// ── CHESS ENGINE ─────────────────────────────────────────────────
+const PV = {Q:900,R:500,B:330,N:320,P:100,K:20000};
+const PST = {
+  P:[ 0, 0, 0, 0, 0, 0, 0, 0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10,
+      5, 5,10,25,25,10, 5, 5,  0, 0, 0,20,20, 0, 0, 0,  5,-5,-10,0,0,-10,-5,5,
+      5,10,10,-20,-20,10,10,5, 0, 0, 0, 0, 0, 0, 0, 0],
+  N:[-50,-40,-30,-30,-30,-30,-40,-50,-40,-20,0,5,5,0,-20,-40,-30,5,10,15,15,10,5,-30,
+     -30,0,15,20,20,15,0,-30,-30,5,15,20,20,15,5,-30,-30,0,10,15,15,10,0,-30,
+     -40,-20,0,0,0,0,-20,-40,-50,-40,-30,-30,-30,-30,-40,-50],
+  B:[-20,-10,-10,-10,-10,-10,-10,-20,-10,5,0,0,0,0,5,-10,-10,10,10,10,10,10,10,-10,
+     -10,0,10,10,10,10,0,-10,-10,5,5,10,10,5,5,-10,-10,0,5,10,10,5,0,-10,
+     -10,0,0,0,0,0,0,-10,-20,-10,-10,-10,-10,-10,-10,-20],
+  R:[0,0,0,0,0,0,0,0,5,10,10,10,10,10,10,5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,
+     -5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,-5,0,0,0,0,0,0,-5,0,0,0,5,5,0,0,0],
+  Q:[-20,-10,-10,-5,-5,-10,-10,-20,-10,0,5,0,0,0,0,-10,-10,5,5,5,5,5,0,-10,
+     0,0,5,5,5,5,0,-5,-5,0,5,5,5,5,0,-5,-10,0,5,5,5,5,0,-10,
+     -10,0,0,0,0,0,0,-10,-20,-10,-10,-5,-5,-10,-10,-20],
+  K:[-30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,
+     -30,-40,-40,-50,-50,-40,-40,-30,-30,-40,-40,-50,-50,-40,-40,-30,
+     -20,-30,-30,-40,-40,-30,-30,-20,-10,-20,-20,-20,-20,-20,-20,-10,
+     20,20,0,0,0,0,20,20,20,30,10,0,0,10,30,20],
+};
+function pstV(type,color,sq){
+  return (PST[type]||new Array(64).fill(0))[color==='w'?sq:63-sq];
+}
 
-  reset() {
-    this.board = this._initBoard();
-    this.turn = 'w';
-    this.castling = { wK: true, wQ: true, bK: true, bQ: true };
-    this.enPassant = null;
-    this.fullMove = 1;
-    this.history = [];
-    this.captured = { w: [], b: [] };
-    this.moveLog = [];
-    this.gameOver = false;
-    this.winner = null;
+class Chess {
+  constructor(){this.reset();}
+  reset(){
+    this.board=this._start(); this.turn='w';
+    this.cas={wK:true,wQ:true,bK:true,bQ:true}; this.ep=null;
+    this.cap={w:[],b:[]}; this.log=[]; this.over=false; this.winner=null;
   }
-
-  _initBoard() {
-    const b = new Array(64).fill(null);
-    const back = ['R','N','B','Q','K','B','N','R'];
-    for (let f = 0; f < 8; f++) {
-      b[f]    = 'b' + back[f];
-      b[8+f]  = 'bP';
-      b[48+f] = 'wP';
-      b[56+f] = 'w' + back[f];
-    }
+  _start(){
+    const b=Array(64).fill(null);
+    const back=['R','N','B','Q','K','B','N','R'];
+    for(let f=0;f<8;f++){b[f]='b'+back[f];b[8+f]='bP';b[48+f]='wP';b[56+f]='w'+back[f];}
     return b;
   }
+  row(sq){return Math.floor(sq/8);}
+  col(sq){return sq%8;}
+  idx(r,c){return r*8+c;}
+  color(pc){return pc?pc[0]:null;}
+  type(pc){return pc?pc[1]:null;}
+  opp(c){return c==='w'?'b':'w';}
 
-  _r(sq)    { return Math.floor(sq / 8); }
-  _f(sq)    { return sq % 8; }
-  _idx(r,f) { return r * 8 + f; }
-  _color(pc){ return pc ? pc[0] : null; }
-  _type(pc) { return pc ? pc[1] : null; }
-  _opp(c)   { return c === 'w' ? 'b' : 'w'; }
-
-  // Returns all pseudo-legal destination squares for the piece at sq
-  _getPseudo(sq, pc, board, ep, cas) {
-    const c = this._color(pc), t = this._type(pc);
-    const r = this._r(sq), f = this._f(sq);
-    const moves = [];
-
-    const add = (tr, tf) => {
-      if (tr < 0 || tr > 7 || tf < 0 || tf > 7) return false;
-      const to = this._idx(tr, tf);
-      if (this._color(board[to]) === c) return false;
-      moves.push(to);
-      return !board[to]; // returns true if square was empty (can continue sliding)
+  pseudo(sq,pc,board,ep,cas){
+    const c=this.color(pc),t=this.type(pc),r=this.row(sq),f=this.col(sq);
+    const mv=[];
+    const slide=(dr,df)=>{
+      for(let k=1;k<8;k++){
+        const tr=r+k*dr,tf=f+k*df;
+        if(tr<0||tr>7||tf<0||tf>7)break;
+        const to=this.idx(tr,tf);
+        if(this.color(board[to])===c)break;
+        mv.push(to); if(board[to])break;
+      }
     };
-
-    if (t === 'P') {
-      const dir   = c === 'w' ? -1 : 1;
-      const start = c === 'w' ? 6 : 1;
-      const fwd   = this._idx(r + dir, f);
-      if (!board[fwd]) {
-        moves.push(fwd);
-        if (r === start && !board[this._idx(r + 2 * dir, f)])
-          moves.push(this._idx(r + 2 * dir, f));
+    const step=(dr,df)=>{
+      const tr=r+dr,tf=f+df;
+      if(tr<0||tr>7||tf<0||tf>7)return;
+      const to=this.idx(tr,tf);
+      if(this.color(board[to])!==c)mv.push(to);
+    };
+    if(t==='P'){
+      const d=c==='w'?-1:1,s=c==='w'?6:1;
+      const fwd=this.idx(r+d,f);
+      if(!board[fwd]){mv.push(fwd);if(r===s&&!board[this.idx(r+2*d,f)])mv.push(this.idx(r+2*d,f));}
+      for(const df of[-1,1]){
+        if(f+df<0||f+df>7)continue;
+        const to=this.idx(r+d,f+df);
+        if(this.color(board[to])===this.opp(c))mv.push(to);
+        if(ep!==null&&to===ep)mv.push(to);
       }
-      for (const df of [-1, 1]) {
-        if (f + df < 0 || f + df > 7) continue;
-        const cap = this._idx(r + dir, f + df);
-        if (this._color(board[cap]) === this._opp(c)) moves.push(cap);
-        if (ep !== null && cap === ep) moves.push(cap);
-      }
-    } else if (t === 'N') {
-      for (const [dr,df] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])
-        add(r+dr, f+df);
-    } else if (t === 'B') {
-      for (const [dr,df] of [[-1,-1],[-1,1],[1,-1],[1,1]])
-        for (let i=1; i<8; i++) if (!add(r+i*dr, f+i*df)) break;
-    } else if (t === 'R') {
-      for (const [dr,df] of [[-1,0],[1,0],[0,-1],[0,1]])
-        for (let i=1; i<8; i++) if (!add(r+i*dr, f+i*df)) break;
-    } else if (t === 'Q') {
-      for (const [dr,df] of [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]])
-        for (let i=1; i<8; i++) if (!add(r+i*dr, f+i*df)) break;
-    } else if (t === 'K') {
-      for (const [dr,df] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])
-        add(r+dr, f+df);
-      // Castling
-      if (c === 'w' && r === 7) {
-        if (cas.wK && !board[61] && !board[62] && !this.isInCheck('w',board) && !this._attacked(61,'b',board) && !this._attacked(62,'b',board)) moves.push(62);
-        if (cas.wQ && !board[57] && !board[58] && !board[59] && !this.isInCheck('w',board) && !this._attacked(58,'b',board) && !this._attacked(59,'b',board)) moves.push(58);
-      }
-      if (c === 'b' && r === 0) {
-        if (cas.bK && !board[5] && !board[6] && !this.isInCheck('b',board) && !this._attacked(5,'w',board) && !this._attacked(6,'w',board)) moves.push(6);
-        if (cas.bQ && !board[1] && !board[2] && !board[3] && !this.isInCheck('b',board) && !this._attacked(2,'w',board) && !this._attacked(3,'w',board)) moves.push(2);
+    }else if(t==='N'){
+      for(const[dr,df]of[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])step(dr,df);
+    }else if(t==='B'){for(const[dr,df]of[[-1,-1],[-1,1],[1,-1],[1,1]])slide(dr,df);}
+    else if(t==='R'){for(const[dr,df]of[[-1,0],[1,0],[0,-1],[0,1]])slide(dr,df);}
+    else if(t==='Q'){for(const[dr,df]of[[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]])slide(dr,df);}
+    else if(t==='K'){
+      for(const[dr,df]of[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])step(dr,df);
+      const hr=c==='w'?7:0;
+      if(r===hr&&f===4){
+        const kk=c==='w'?'wK':'bK',qq=c==='w'?'wQ':'bQ';
+        if(cas[kk]&&!board[this.idx(hr,5)]&&!board[this.idx(hr,6)]
+          &&!this.attacked(this.idx(hr,4),this.opp(c),board)
+          &&!this.attacked(this.idx(hr,5),this.opp(c),board)
+          &&!this.attacked(this.idx(hr,6),this.opp(c),board))mv.push(this.idx(hr,6));
+        if(cas[qq]&&!board[this.idx(hr,3)]&&!board[this.idx(hr,2)]&&!board[this.idx(hr,1)]
+          &&!this.attacked(this.idx(hr,4),this.opp(c),board)
+          &&!this.attacked(this.idx(hr,3),this.opp(c),board)
+          &&!this.attacked(this.idx(hr,2),this.opp(c),board))mv.push(this.idx(hr,2));
       }
     }
-    return moves;
+    return mv;
   }
 
-  // Apply a move and return [newBoard, piece, captured, newEp, newCastling]
-  _applyMove(from, to, board, ep, cas) {
-    const b   = [...board];
-    const pc  = b[from];
-    const c   = this._color(pc);
-    const t   = this._type(pc);
-    let cap   = b[to];
-    let nEp   = null;
-    const nCas = { ...cas };
-
-    // En passant capture
-    if (t === 'P' && to === ep) {
-      const capSq = this._idx(this._r(to) + (c === 'w' ? 1 : -1), this._f(to));
-      cap = b[capSq];
-      b[capSq] = null;
+  applyMove(from,to,board,ep,cas,promo='Q'){
+    const b=[...board],pc=b[from],c=this.color(pc),t=this.type(pc);
+    let cap=b[to],nEp=null;const nCas={...cas};
+    if(t==='P'&&to===ep){const cSq=this.idx(this.row(to)+(c==='w'?1:-1),this.col(to));cap=b[cSq];b[cSq]=null;}
+    if(t==='P'&&Math.abs(this.row(to)-this.row(from))===2)nEp=this.idx((this.row(from)+this.row(to))/2,this.col(from));
+    if(t==='K'){
+      if(to-from===2){b[to-1]=b[to+1];b[to+1]=null;}
+      if(from-to===2){b[to+1]=b[to-2];b[to-2]=null;}
+      nCas[c==='w'?'wK':'bK']=false;nCas[c==='w'?'wQ':'bQ']=false;
     }
-
-    // Set new en passant square
-    if (t === 'P' && Math.abs(this._r(to) - this._r(from)) === 2)
-      nEp = this._idx((this._r(from) + this._r(to)) / 2, this._f(from));
-
-    // Castling: move the rook
-    if (t === 'K') {
-      if (to - from === 2) { b[to - 1] = b[to + 1]; b[to + 1] = null; } // kingside
-      if (from - to === 2) { b[to + 1] = b[to - 2]; b[to - 2] = null; } // queenside
-      if (c === 'w') { nCas.wK = false; nCas.wQ = false; }
-      else           { nCas.bK = false; nCas.bQ = false; }
-    }
-
-    // Revoke castling rights when rook moves or is captured
-    if (t === 'R') {
-      if (from === 63) nCas.wK = false;
-      if (from === 56) nCas.wQ = false;
-      if (from ===  7) nCas.bK = false;
-      if (from ===  0) nCas.bQ = false;
-    }
-    if (cap && this._type(cap) === 'R') {
-      if (to === 63) nCas.wK = false;
-      if (to === 56) nCas.wQ = false;
-      if (to ===  7) nCas.bK = false;
-      if (to ===  0) nCas.bQ = false;
-    }
-
-    b[to]   = b[from];
-    b[from] = null;
-    return [b, pc, cap, nEp, nCas];
+    if(t==='R'){if(from===56)nCas.wQ=false;if(from===63)nCas.wK=false;if(from===0)nCas.bQ=false;if(from===7)nCas.bK=false;}
+    if(cap&&this.type(cap)==='R'){if(to===56)nCas.wQ=false;if(to===63)nCas.wK=false;if(to===0)nCas.bQ=false;if(to===7)nCas.bK=false;}
+    b[to]=pc;b[from]=null;
+    if(t==='P'&&(this.row(to)===0||this.row(to)===7))b[to]=c+promo;
+    return[b,cap,nEp,nCas];
   }
 
-  isInCheck(color, board) {
-    const kSq = board.findIndex(p => p === color + 'K');
-    if (kSq === -1) return true;
-    return this._attacked(kSq, this._opp(color), board);
-  }
-
-  _attacked(sq, byColor, board) {
-    for (let s = 0; s < 64; s++) {
-      if (this._color(board[s]) !== byColor) continue;
-      const pseudo = this._getPseudo(s, board[s], board, null, { wK:false, wQ:false, bK:false, bQ:false });
-      if (pseudo.includes(sq)) return true;
+  attacked(sq,byColor,board){
+    for(let s=0;s<64;s++){
+      if(this.color(board[s])!==byColor)continue;
+      if(this.pseudo(s,board[s],board,null,{wK:false,wQ:false,bK:false,bQ:false}).includes(sq))return true;
     }
     return false;
   }
+  inCheck(color,board){const k=board.findIndex(p=>p===color+'K');return k===-1||this.attacked(k,this.opp(color),board);}
 
-  getLegalMoves(sq) {
-    const pc = this.board[sq];
-    if (!pc || this._color(pc) !== this.turn) return [];
-    return this._getPseudo(sq, pc, this.board, this.enPassant, this.castling)
-      .filter(to => {
-        const [nb] = this._applyMove(sq, to, this.board, this.enPassant, this.castling);
-        return !this.isInCheck(this.turn, nb);
-      });
-  }
-
-  _getAllLegal(color) {
-    const moves = [];
-    for (let sq = 0; sq < 64; sq++) {
-      if (this._color(this.board[sq]) !== color) continue;
-      this._getPseudo(sq, this.board[sq], this.board, this.enPassant, this.castling)
-        .forEach(to => {
-          const [nb] = this._applyMove(sq, to, this.board, this.enPassant, this.castling);
-          if (!this.isInCheck(color, nb)) moves.push([sq, to]);
-        });
-    }
-    return moves;
-  }
-
-  makeMove(from, to, promoType = 'Q') {
-    const [nb, pc, cap, nEp, nCas] = this._applyMove(from, to, this.board, this.enPassant, this.castling);
-    const t = this._type(pc), c = this._color(pc);
-
-    // Pawn promotion
-    if (t === 'P' && (this._r(to) === 0 || this._r(to) === 7))
-      nb[to] = c + promoType;
-
-    this.board      = nb;
-    this.enPassant  = nEp;
-    this.castling   = nCas;
-
-    if (cap) this.captured[this._opp(c)].push(cap);
-
-    // Move notation (simple algebraic)
-    const files  = 'abcdefgh', ranks = '87654321';
-    const suffix = (t === 'P' && (this._r(to) === 0 || this._r(to) === 7)) ? promoType : '';
-    this.moveLog.push({
-      text: files[this._f(from)] + ranks[this._r(from)] + files[this._f(to)] + ranks[this._r(to)] + suffix,
-      color: c
+  legalMoves(sq){
+    const pc=this.board[sq];
+    if(!pc||this.color(pc)!==this.turn)return[];
+    return this.pseudo(sq,pc,this.board,this.ep,this.cas).filter(to=>{
+      const[nb]=this.applyMove(sq,to,this.board,this.ep,this.cas);
+      return!this.inCheck(this.turn,nb);
     });
-
-    this.history.push({ from, to, pc, cap, ep: nEp, cas: nCas });
-    this.turn = this._opp(this.turn);
-    if (this.turn === 'w') this.fullMove++;
-
-    // Game-over detection
-    const legal = this._getAllLegal(this.turn);
-    if (legal.length === 0) {
-      this.gameOver = true;
-      this.winner   = this.isInCheck(this.turn, this.board) ? this._opp(this.turn) : null;
-    }
-
-    return { from, to, cap, check: this.isInCheck(this.turn, this.board) };
   }
-
-  // Static evaluation (positive = white better)
-  _evaluate(board) {
-    let score = 0;
-    for (let sq = 0; sq < 64; sq++) {
-      const pc = board[sq];
-      if (!pc) continue;
-      const c = this._color(pc), t = this._type(pc);
-      const v = (PIECE_VALUES[t] || 0) + pstScore(t, c, sq);
-      score += c === 'w' ? v : -v;
-    }
-    return score;
-  }
-
-  // Minimax with alpha-beta pruning
-  _minimax(board, depth, alpha, beta, maximizing, ep, cas) {
-    const color = maximizing ? 'w' : 'b';
-    const moves = [];
-
-    for (let sq = 0; sq < 64; sq++) {
-      if (this._color(board[sq]) !== color) continue;
-      const pseudo = this._getPseudo(sq, board[sq], board, ep, cas);
-      pseudo.forEach(to => {
-        const [nb,,, nEp, nC] = this._applyMove(sq, to, board, ep, cas);
-        if (!this.isInCheck(color, nb)) moves.push([sq, to, nb, nEp, nC]);
+  allLegal(color=this.turn){
+    const mv=[];
+    for(let sq=0;sq<64;sq++){
+      if(this.color(this.board[sq])!==color)continue;
+      this.pseudo(sq,this.board[sq],this.board,this.ep,this.cas).forEach(to=>{
+        const[nb]=this.applyMove(sq,to,this.board,this.ep,this.cas);
+        if(!this.inCheck(color,nb))mv.push([sq,to]);
       });
     }
+    return mv;
+  }
 
-    if (moves.length === 0)
-      return this.isInCheck(color, board) ? (maximizing ? -20000 : 20000) : 0;
+  makeMove(from,to,promo='Q'){
+    const[nb,cap,nEp,nCas]=this.applyMove(from,to,this.board,this.ep,this.cas,promo);
+    const pc=this.board[from],c=this.color(pc),t=this.type(pc);
+    this.board=nb;this.ep=nEp;this.cas=nCas;
+    if(cap)this.cap[c].push(cap);
+    this.turn=this.opp(this.turn);
+    const check=this.inCheck(this.turn,this.board);
+    const F='abcdefgh',R='87654321';
+    const suf=t==='P'&&(this.row(to)===0||this.row(to)===7)?promo:'';
+    this.log.push({from,to,pc,cap,check,color:c,
+      text:F[this.col(from)]+R[this.row(from)]+F[this.col(to)]+R[this.row(to)]+suf,
+      moveNum:Math.ceil(this.log.length/2)+1});
+    const legal=this.allLegal(this.turn);
+    if(!legal.length){this.over=true;this.winner=check?this.opp(this.turn):null;}
+    return{cap,check};
+  }
 
-    if (depth === 0) return this._evaluate(board);
+  evaluate(board=this.board){
+    let sc=0;
+    for(let sq=0;sq<64;sq++){
+      const pc=board[sq];if(!pc)continue;
+      const c=this.color(pc),t=this.type(pc);
+      const v=(PV[t]||0)+pstV(t,c,sq);
+      sc+=c==='w'?v:-v;
+    }
+    return sc;
+  }
 
-    if (maximizing) {
-      let best = -Infinity;
-      for (const [,, nb, nEp, nC] of moves) {
-        const sc = this._minimax(nb, depth - 1, alpha, beta, false, nEp, nC);
-        best = Math.max(best, sc);
-        alpha = Math.max(alpha, sc);
-        if (beta <= alpha) break;
-      }
+  minimax(board,depth,alpha,beta,max,ep,cas){
+    const color=max?'w':'b',mv=[];
+    for(let sq=0;sq<64;sq++){
+      if(this.color(board[sq])!==color)continue;
+      this.pseudo(sq,board[sq],board,ep,cas).forEach(to=>{
+        const[nb,,nEp,nC]=this.applyMove(sq,to,board,ep,cas);
+        if(!this.inCheck(color,nb))mv.push([sq,to,nb,nEp,nC]);
+      });
+    }
+    if(!mv.length)return this.inCheck(color,board)?(max?-99999:99999):0;
+    if(!depth)return this.evaluate(board);
+    if(max){
+      let best=-Infinity;
+      for(const[,,nb,nEp,nC]of mv){const s=this.minimax(nb,depth-1,alpha,beta,false,nEp,nC);if(s>best)best=s;if(s>alpha)alpha=s;if(beta<=alpha)break;}
       return best;
-    } else {
-      let best = Infinity;
-      for (const [,, nb, nEp, nC] of moves) {
-        const sc = this._minimax(nb, depth - 1, alpha, beta, true, nEp, nC);
-        best = Math.min(best, sc);
-        beta = Math.min(beta, sc);
-        if (beta <= alpha) break;
-      }
+    }else{
+      let best=Infinity;
+      for(const[,,nb,nEp,nC]of mv){const s=this.minimax(nb,depth-1,alpha,beta,true,nEp,nC);if(s<best)best=s;if(s<beta)beta=s;if(beta<=alpha)break;}
       return best;
     }
   }
 
-  getBestMove(depth) {
-    const color = this.turn;
-    const maximizing = color === 'w';
-    let best = maximizing ? -Infinity : Infinity;
-    let bestMove = null;
-    const moves = [];
-
-    for (let sq = 0; sq < 64; sq++) {
-      if (this._color(this.board[sq]) !== color) continue;
-      const pseudo = this._getPseudo(sq, this.board[sq], this.board, this.enPassant, this.castling);
-      pseudo.forEach(to => {
-        const [nb,,, nEp, nC] = this._applyMove(sq, to, this.board, this.enPassant, this.castling);
-        if (!this.isInCheck(color, nb)) moves.push([sq, to, nb, nEp, nC]);
+  bestMove(depth){
+    const c=this.turn,max=c==='w';
+    let best=max?-Infinity:Infinity,bm=null;
+    const mv=[];
+    for(let sq=0;sq<64;sq++){
+      if(this.color(this.board[sq])!==c)continue;
+      this.pseudo(sq,this.board[sq],this.board,this.ep,this.cas).forEach(to=>{
+        const[nb,,nEp,nC]=this.applyMove(sq,to,this.board,this.ep,this.cas);
+        if(!this.inCheck(c,nb))mv.push([sq,to,nb,nEp,nC]);
       });
     }
-
-    // Shuffle for variety at equal scores
-    moves.sort(() => Math.random() - 0.5);
-
-    for (const [sq, to, nb, nEp, nC] of moves) {
-      const sc = this._minimax(nb, depth - 1, -Infinity, Infinity, !maximizing, nEp, nC);
-      if ((maximizing && sc > best) || (!maximizing && sc < best)) {
-        best = sc;
-        bestMove = [sq, to];
-      }
+    mv.sort(()=>Math.random()-0.5);
+    for(const[sq,to,nb,nEp,nC]of mv){
+      const s=this.minimax(nb,depth-1,-Infinity,Infinity,!max,nEp,nC);
+      if((max&&s>best)||(!max&&s<best)){best=s;bm=[sq,to];}
     }
-    return bestMove;
+    return{move:bm,score:best};
   }
 }
 
-// ═══════════════════════════════════════════════════════
-//  UI / RENDERING
-// ═══════════════════════════════════════════════════════
+// ── PUZZLES ──────────────────────────────────────────────────────
+const PUZZLES=[
+  {name:'Back Rank Mate',tag:'Checkmate',rating:900,
+   fen:'6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1',
+   solution:['d1d8'],
+   desc:'White to move. The black king is trapped on the back rank.',
+   explain:'Rd8# is checkmate. The rook controls the entire back rank and the black king has no escape.'},
+  {name:'Knight Fork',tag:'Fork',rating:1150,
+   fen:'r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 4 4',
+   solution:['f3e5'],
+   desc:'White to move. Find the knight move that attacks two pieces at once.',
+   explain:'Nxe5 forks the queen on d7 and the knight on c6, winning material.'},
+  {name:'Queen Checkmate',tag:'Checkmate',rating:800,
+   fen:'4k3/4Q3/4K3/8/8/8/8/8 w - - 0 1',
+   solution:['e7e8'],
+   desc:'White to move. Deliver checkmate in one.',
+   explain:'Qe8# is checkmate. The king is completely boxed in.'},
+  {name:'Promotion Race',tag:'Promotion',rating:950,
+   fen:'8/P5k1/8/8/8/8/6K1/8 w - - 0 1',
+   solution:['a7a8'],
+   desc:'White to move. Promote the pawn to win.',
+   explain:'a8=Q promotes to a queen. The new queen dominates the board and wins easily.'},
+  {name:'Pin the Knight',tag:'Pin',rating:1050,
+   fen:'r1bqk2r/pppp1ppp/2n2n2/4p3/1bB1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
+   solution:['c4b5'],
+   desc:'White to move. Pin the knight to win material.',
+   explain:'Bb5 pins the c6 knight to the king. The knight cannot move without exposing the king to check.'},
+  {name:'Rook Skewer',tag:'Skewer',rating:1100,
+   fen:'4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1',
+   solution:['e2e8'],
+   desc:'White to move. Use a skewer to win the rook.',
+   explain:'Re8+ forces the king to move, then White captures the rook on e7.'},
+  {name:'Smothered King',tag:'Checkmate',rating:1200,
+   fen:'5rk1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1',
+   solution:['f1f8'],
+   desc:'White to move. The black king is smothered by its own pieces.',
+   explain:'Rxf8# is checkmate. The black king\'s pawns prevent any escape.'},
+  {name:'Hanging Queen',tag:'Tactic',rating:750,
+   fen:'rnb1kbnr/pppp1ppp/8/4p3/4P1q1/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+   solution:['f3g1'],
+   desc:'White to move. Win the hanging queen.',
+   explain:'Ng1 attacks the queen on g4, winning it for free since it has nowhere safe to go.'},
+];
 
-let game       = new ChessGame();
-let mode       = 'pvp';
-let aiDepth    = 3;
-let selectedSq = null;
-let legalMoves = [];
-let lastMove   = null;
-let themeIdx   = 0;
-let aiThinking = false;
+// ── UI STATE ─────────────────────────────────────────────────────
+let game=new Chess(), mode='pvc', aiDepth=3;
+let selSq=null, legalSqs=[], lastMove=null;
+let flipped=false, aiThinking=false, hintSq=null;
+let evalScore=0, pendingTheme='classic', currentTheme='classic';
+let puzzleIdx=0, pzGame=null, pzSolIdx=0, pzSolved=false;
 
-function startGame(m) {
-  mode    = m;
-  aiDepth = parseInt(document.getElementById('depth-sel').value) || 3;
-  game.reset();
-  selectedSq = null; legalMoves = []; lastMove = null; aiThinking = false;
+const THEMES={
+  classic:{light:'#f0d9b5',dark:'#b58863'},
+  ocean:  {light:'#d9edf4',dark:'#4f7cac'},
+  walnut: {light:'#e8d0a8',dark:'#7a4f2e'},
+  green:  {light:'#eeeed2',dark:'#769656'},
+};
 
-  document.getElementById('welcome').style.display = 'none';
-  document.getElementById('game').style.display    = 'flex';
-  document.getElementById('mode-label').textContent = m === 'pvp' ? 'Player vs Player' : 'Player vs AI';
+function sqName(sq){return 'abcdefgh'[sq%8]+'87654321'[Math.floor(sq/8)];}
+function sqN(sq){return 'abcdefgh'[sq%8]+'87654321'[Math.floor(sq/8)];}
 
-  buildCoords();
-  render();
+// ── WELCOME / MODE ────────────────────────────────────────────────
+let welcomeMode='pvc';
+function selectMode(m){
+  welcomeMode=m;
+  document.querySelectorAll('.mode-card').forEach(b=>b.classList.remove('active'));
+  document.getElementById('wm-'+m).classList.add('active');
+}
+function launchGame(){
+  aiDepth=+document.getElementById('diffSelect').value||3;
+  currentTheme=document.getElementById('welcomeTheme').value||'classic';
+  document.getElementById('themeSelect').value=currentTheme;
+  document.getElementById('depthSlider').value=aiDepth;
+  document.getElementById('depthVal').textContent=aiDepth;
+  startGame(welcomeMode);
+}
+function goMenu(){
+  aiThinking=false;
+  document.getElementById('gameShell').classList.remove('visible');
+  document.getElementById('welcomeScreen').classList.remove('hidden');
+}
+function switchMode(m){startGame(m);}
+
+// ── GAME START ────────────────────────────────────────────────────
+function startGame(m){
+  mode=m; game=new Chess();
+  selSq=null;legalSqs=[];lastMove=null;flipped=false;aiThinking=false;hintSq=null;evalScore=0;
+
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  document.getElementById('gameShell').classList.add('visible');
+
+  // Tab highlighting
+  ['tabPvc','tabPvp','tabPuzzle'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.classList.remove('active');
+  });
+  const tabMap={pvc:'tabPvc',pvp:'tabPvp',puzzle:'tabPuzzle'};
+  document.getElementById(tabMap[m])?.classList.add('active');
+
+  // Show/hide panels
+  const isPuzzle=m==='puzzle';
+  document.getElementById('puzzleCard').style.display=isPuzzle?'block':'none';
+  document.getElementById('statusCard').style.display=isPuzzle?'none':'block';
+  document.getElementById('moveCard').style.display=isPuzzle?'none':'block';
+  document.getElementById('evalCard').style.display=m==='pvc'?'block':'none';
+  document.getElementById('evalBar').style.display=m==='pvc'?'flex':'none';
+  document.getElementById('engineCard').style.display=m==='pvc'?'block':'none';
+  document.getElementById('hintBtn').disabled=m!=='pvc';
+
+  // Bottom player name
+  document.getElementById('bottomName').textContent=
+    m==='pvc'?'You (White)':m==='pvp'?'White':'White';
+  document.getElementById('topBar').querySelector('.pname').textContent=
+    m==='pvc'?'Chess AI':'Black';
+
+  if(isPuzzle){
+    buildBoard();
+    loadPuzzle(0);
+  }else{
+    buildBoard();
+    renderBoard();
+    setStatus('White to move','');
+    updateMoveList();
+    updatePlayerBars();
+    if(m==='pvc')scheduleEval();
+  }
 }
 
-function goMenu() {
-  document.getElementById('game').style.display    = 'none';
-  document.getElementById('welcome').style.display = 'flex';
-}
+function resetGame(){startGame(mode);}
 
-function cycleTheme() {
-  themeIdx = (themeIdx + 1) % 4;
-  const g = document.getElementById('game');
-  g.className = g.className.replace(/t\d/, 't' + themeIdx);
-}
-
-function buildCoords() {
-  const rl = document.getElementById('rank-labels');
-  const fl = document.getElementById('file-labels');
-  rl.innerHTML = ''; fl.innerHTML = '';
-  '87654321'.split('').forEach(r => { const s = document.createElement('span'); s.textContent = r; rl.appendChild(s); });
-  'abcdefgh'.split('').forEach(f => { const s = document.createElement('span'); s.textContent = f; fl.appendChild(s); });
-}
-
-function render() {
-  const bd      = document.getElementById('board');
-  bd.innerHTML  = '';
-  const inCheck = game.isInCheck(game.turn, game.board);
-
-  for (let sq = 0; sq < 64; sq++) {
-    const div = document.createElement('div');
-    const r   = Math.floor(sq / 8), f = sq % 8;
-    div.className = 'sq ' + (((r + f) % 2 === 0) ? 'light' : 'dark');
-
-    if (selectedSq === sq) div.classList.add('selected');
-    if (legalMoves.includes(sq)) div.classList.add('legal');
-    if (game.board[sq] && legalMoves.includes(sq)) div.classList.add('has-piece');
-    if (lastMove) {
-      if (sq === lastMove.from) div.classList.add('last-from');
-      if (sq === lastMove.to)   div.classList.add('last-to');
-    }
-
-    const pc = game.board[sq];
-    if (pc) {
-      if (inCheck && pc === game.turn + 'K') div.classList.add('in-check');
-      const span     = document.createElement('span');
-      span.className = 'piece';
-      span.textContent = PIECES[pc];
-      span.style.fontSize = pc[1] === 'P' ? '34px' : '40px';
-      div.appendChild(span);
-    }
-
-    div.addEventListener('click', () => handleClick(sq));
+// ── BOARD BUILD ───────────────────────────────────────────────────
+function buildBoard(){
+  buildCoordLabels();
+  const bd=document.getElementById('board');
+  bd.innerHTML='';
+  const thm=THEMES[currentTheme]||THEMES.classic;
+  for(let vis=0;vis<64;vis++){
+    const sq=flipped?(7-Math.floor(vis/8))*8+(7-vis%8):vis;
+    const r=Math.floor(sq/8),f=sq%8,lt=(r+f)%2===0;
+    const div=document.createElement('div');
+    div.className='sq '+(lt?'light':'dark');
+    div.style.background=lt?thm.light:thm.dark;
+    div.dataset.sq=sq;
+    div.addEventListener('click',()=>handleClick(+div.dataset.sq));
     bd.appendChild(div);
   }
-
-  // Status bar
-  let status = '';
-  if (game.gameOver) {
-    status = game.winner
-      ? (game.winner === 'w' ? 'White' : 'Black') + ' wins! 🎉'
-      : 'Stalemate — Draw 🤝';
-  } else {
-    status = (game.turn === 'w' ? 'White' : 'Black') + ' to move';
-    if (inCheck)    status += ' — CHECK ⚠️';
-    if (aiThinking) status  = 'AI thinking…';
-  }
-  document.getElementById('status').textContent = status;
-
-  renderCaptured();
-  renderLog();
 }
 
-function renderCaptured() {
-  const cw = document.getElementById('cap-white');
-  const cb = document.getElementById('cap-black');
-  cw.innerHTML = '<span style="font-size:0.7rem;color:#6a7a9a;margin-right:4px">Captured by Black:</span>';
-  cb.innerHTML = '<span style="font-size:0.7rem;color:#6a7a9a;margin-right:4px">Captured by White:</span>';
-  game.captured.w.forEach(p => { const s = document.createElement('span'); s.className = 'cp'; s.textContent = PIECES[p]; cw.appendChild(s); });
-  game.captured.b.forEach(p => { const s = document.createElement('span'); s.className = 'cp'; s.textContent = PIECES[p]; cb.appendChild(s); });
+function buildCoordLabels(){
+  const ranks=document.getElementById('rankLabels');
+  const files=document.getElementById('fileLabels');
+  ranks.innerHTML=''; files.innerHTML='';
+  const rs=flipped?'12345678'.split(''):'87654321'.split('');
+  const fs=flipped?'hgfedcba'.split(''):'abcdefgh'.split('');
+  rs.forEach(r=>{const s=document.createElement('span');s.textContent=r;ranks.appendChild(s);});
+  fs.forEach(f=>{const s=document.createElement('span');s.textContent=f;files.appendChild(s);});
 }
 
-function renderLog() {
-  const log = document.getElementById('move-log');
-  log.innerHTML = '';
-  game.moveLog.forEach((m, i) => {
-    const span     = document.createElement('span');
-    span.className = 'ml ' + (m.color === 'w' ? 'w' : 'b');
-    span.textContent = (Math.floor(i / 2) + 1) + (i % 2 === 0 ? '.' : '..') + m.text;
-    log.appendChild(span);
+function setTheme(t){
+  currentTheme=t;
+  const thm=THEMES[t]||THEMES.classic;
+  document.querySelectorAll('.sq').forEach(div=>{
+    const sq=+div.dataset.sq,r=Math.floor(sq/8),f=sq%8,lt=(r+f)%2===0;
+    div.style.background=lt?thm.light:thm.dark;
   });
-  log.scrollTop = log.scrollHeight;
 }
 
-function handleClick(sq) {
-  if (game.gameOver || aiThinking) return;
-  if (mode === 'pvc' && game.turn === 'b') return;
+// ── RENDER BOARD ─────────────────────────────────────────────────
+function renderBoard(){
+  const g=mode==='puzzle'?(pzGame||game):game;
+  const chk=g.inCheck(g.turn,g.board);
+  const thm=THEMES[currentTheme]||THEMES.classic;
 
-  if (selectedSq === null) {
-    // Select a piece
-    if (game.board[sq] && game._color(game.board[sq]) === game.turn) {
-      selectedSq = sq;
-      legalMoves = game.getLegalMoves(sq);
-      render();
-    }
-  } else {
-    if (legalMoves.includes(sq)) {
-      doMove(selectedSq, sq);
-    } else if (game.board[sq] && game._color(game.board[sq]) === game.turn) {
-      // Switch selection
-      selectedSq = sq;
-      legalMoves = game.getLegalMoves(sq);
-      render();
-    } else {
-      // Deselect
-      selectedSq = null;
-      legalMoves = [];
-      render();
-    }
-  }
-}
+  document.querySelectorAll('.sq').forEach(div=>{
+    const sq=+div.dataset.sq,r=Math.floor(sq/8),f=sq%8,lt=(r+f)%2===0;
+    div.style.background=lt?thm.light:thm.dark;
+    div.classList.remove('sel','last-from','last-to','in-check','hint','legal-move','legal-cap');
+    div.querySelectorAll('.piece,.wp,.bp').forEach(e=>e.remove());
 
-function doMove(from, to, promoType) {
-  const t      = game._type(game.board[from]);
-  const toRank = Math.floor(to / 8);
-
-  // Show promotion dialog if needed
-  if (t === 'P' && (toRank === 0 || toRank === 7) && !promoType) {
-    showPromo(from, to, game.turn);
-    return;
-  }
-
-  game.makeMove(from, to, promoType || 'Q');
-  lastMove   = { from, to };
-  selectedSq = null;
-  legalMoves = [];
-  render();
-
-  // Trigger AI if applicable
-  if (!game.gameOver && mode === 'pvc' && game.turn === 'b') {
-    aiThinking = true;
-    render();
-    setTimeout(doAI, 80);
-  }
-}
-
-function doAI() {
-  const mv = game.getBestMove(aiDepth);
-  aiThinking = false;
-  if (mv) {
-    game.makeMove(mv[0], mv[1]);
-    lastMove = { from: mv[0], to: mv[1] };
-  }
-  render();
-}
-
-function showPromo(from, to, color) {
-  const pp = document.getElementById('promo-pieces');
-  pp.innerHTML = '';
-  ['Q','R','B','N'].forEach(t => {
-    const span     = document.createElement('span');
-    span.className = 'promo-piece';
-    span.textContent = PIECES[color + t];
-    span.onclick = () => {
-      document.getElementById('promo-dialog').classList.remove('show');
-      doMove(from, to, t);
-    };
-    pp.appendChild(span);
+    if(selSq===sq) div.classList.add('sel');
+    if(hintSq===sq)div.classList.add('hint');
+    if(lastMove){if(sq===lastMove.from)div.classList.add('last-from');if(sq===lastMove.to)div.classList.add('last-to');}
+    if(chk&&g.board[sq]===g.turn+'K')div.classList.add('in-check');
+    if(legalSqs.includes(sq))div.classList.add(g.board[sq]?'legal-cap':'legal-move');
+    const pc=g.board[sq];
+    if(pc)div.appendChild(makePiece(pc));
   });
-  document.getElementById('promo-dialog').classList.add('show');
+
+  if(mode!=='puzzle'){
+    if(!game.over){
+      const chkGame=game.inCheck(game.turn,game.board);
+      const c=game.turn==='w'?'White':'Black';
+      setStatus(aiThinking?'AI thinking…':`${c} to move`+(chkGame?' — CHECK ⚠️':''),'');
+    }
+    document.getElementById('moveCard').querySelector('.move-scroll').scrollTop=9999;
+    updateMoveList();
+    updatePlayerBars();
+    if(mode==='pvc')scheduleEval();
+  }
 }
+
+function setStatus(t,c){const el=document.getElementById('statusMsg');if(el){el.textContent=t;el.className='status-msg '+(c||'');}}
+
+function updateMoveList(){
+  const tbody=document.getElementById('moveList');
+  if(!tbody)return;tbody.innerHTML='';
+  for(let i=0;i<game.log.length;i+=2){
+    const tr=document.createElement('tr');
+    const n=document.createElement('td');n.textContent=i/2+1;
+    const w=document.createElement('td');w.className='wm';w.textContent=game.log[i].text;
+    const b=document.createElement('td');b.className='bm';b.textContent=game.log[i+1]?game.log[i+1].text:'';
+    tr.append(n,w,b);tbody.appendChild(tr);
+  }
+}
+
+function updatePlayerBars(){
+  const wCap=game.cap.w, bCap=game.cap.b;
+  const wVal=wCap.reduce((s,p)=>s+(PV[game.type(p)]||0),0);
+  const bVal=bCap.reduce((s,p)=>s+(PV[game.type(p)]||0),0);
+  const top=document.getElementById('topBar'),bot=document.getElementById('bottomBar');
+  if(!top||!bot)return;
+
+  // top = Black, bottom = White (unless flipped)
+  const [whiteBar,blackBar]=flipped?[top,bot]:[bot,top];
+  whiteBar.classList.toggle('active-turn',game.turn==='w'&&!game.over);
+  blackBar.classList.toggle('active-turn',game.turn==='b'&&!game.over);
+
+  const fill=(bar,capArr,adv)=>{
+    const capEl=bar.querySelector('.pcap'),advEl=bar.querySelector('.padv');
+    if(capEl){capEl.innerHTML='';capArr.forEach(p=>{const s=document.createElement('span');s.className='pcap-piece';s.textContent=UNI[p]||'?';capEl.appendChild(s);});}
+    if(advEl)advEl.textContent=adv>0?'+'+adv:'';
+  };
+  fill(whiteBar,bCap,wVal-bVal>0?wVal-bVal:0);
+  fill(blackBar,wCap,bVal-wVal>0?bVal-wVal:0);
+}
+
+// ── EVAL BAR ─────────────────────────────────────────────────────
+let evalTimer=null;
+function scheduleEval(){
+  clearTimeout(evalTimer);
+  evalTimer=setTimeout(()=>{
+    if(game.over){renderEval(game.winner==='w'?9999:game.winner==='b'?-9999:0);return;}
+    const s=game.minimax(game.board,2,-Infinity,Infinity,true,game.ep,game.cas);
+    renderEval(typeof s==='number'?s:0);
+  },150);
+}
+function renderEval(sc){
+  evalScore=sc;
+  const capped=Math.max(-800,Math.min(800,sc));
+  const blackPct=Math.round(50-(capped/800)*45);
+  const bar=document.getElementById('evalBlack');
+  if(bar)bar.style.height=blackPct+'%';
+  const display=Math.abs(sc)>=9000?(sc>0?'M':'-M'):(sc>=0?'+':'')+( sc/100).toFixed(1);
+  const el=document.getElementById('evalNum');
+  const tl=document.getElementById('evalTopLabel');
+  const bl=document.getElementById('evalBotLabel');
+  if(el)el.textContent=display;
+  if(tl)tl.textContent=sc<0?display:'';
+  if(bl)bl.textContent=sc>=0?display:'';
+}
+
+// ── CLICK HANDLER ─────────────────────────────────────────────────
+function handleClick(sq){
+  if(mode==='puzzle'){handlePzClick(sq);return;}
+  if(game.over||aiThinking)return;
+  if(mode==='pvc'&&game.turn==='b')return;
+  hintSq=null;
+  if(selSq===null){
+    if(game.board[sq]&&game.color(game.board[sq])===game.turn){
+      selSq=sq;legalSqs=game.legalMoves(sq);renderBoard();
+    }
+  }else{
+    if(legalSqs.includes(sq)){doMove(selSq,sq);}
+    else if(game.board[sq]&&game.color(game.board[sq])===game.turn){selSq=sq;legalSqs=game.legalMoves(sq);renderBoard();}
+    else{selSq=null;legalSqs=[];renderBoard();}
+  }
+}
+
+function doMove(from,to,promo){
+  const t=game.type(game.board[from]),rank=Math.floor(to/8);
+  if(t==='P'&&(rank===0||rank===7)&&!promo){showPromo(from,to,game.turn);return;}
+  game.makeMove(from,to,promo||'Q');
+  lastMove={from,to};selSq=null;legalSqs=[];hintSq=null;
+  renderBoard();
+  if(game.over){handleGameOver();return;}
+  if(mode==='pvc'&&game.turn==='b'){aiThinking=true;renderBoard();setTimeout(doAI,80);}
+}
+
+function doAI(){
+  const{move:mv}=game.bestMove(aiDepth);
+  aiThinking=false;
+  if(mv){game.makeMove(mv[0],mv[1]);lastMove={from:mv[0],to:mv[1]};}
+  renderBoard();
+  if(game.over)handleGameOver();
+}
+
+function handleGameOver(){
+  let t,c;
+  if(game.winner){t=(game.winner==='w'?'White':'Black')+' wins by checkmate! 🎉';c='good';}
+  else{t='Stalemate — Draw 🤝';c='';}
+  setStatus(t,c);
+  if(mode==='pvc')setTimeout(()=>showAnalysis(game.winner==='b'),900);
+}
+
+// ── HINT ──────────────────────────────────────────────────────────
+function showHint(){
+  if(mode!=='pvc'||game.over||aiThinking)return;
+  const{move:mv}=game.bestMove(2);
+  if(mv){hintSq=mv[0];selSq=null;legalSqs=[];renderBoard();
+    setStatus('Hint: move the highlighted piece.','warn');
+    setTimeout(()=>{hintSq=null;renderBoard();},2200);}
+}
+function flipBoard(){flipped=!flipped;buildBoard();renderBoard();}
+
+// ── PROMOTION ─────────────────────────────────────────────────────
+function showPromo(from,to,color){
+  const row=document.getElementById('promoRow');
+  row.innerHTML='';
+  ['Q','R','B','N'].forEach(t=>{
+    const pc=color+t,div=document.createElement('div');
+    div.className='promo-sq';
+    if(imgOk[pc]===false){div.textContent=UNI[pc];}
+    else{
+      const img=document.createElement('img');img.src=PNG[pc];img.alt=pc;
+      img.onerror=()=>{imgOk[pc]=false;img.replaceWith(document.createTextNode(UNI[pc]));};
+      div.appendChild(img);
+    }
+    div.onclick=()=>{document.getElementById('promoOverlay').classList.remove('show');doMove(from,to,t);};
+    row.appendChild(div);
+  });
+  document.getElementById('promoOverlay').classList.add('show');
+}
+
+// ── POST-GAME ANALYSIS ────────────────────────────────────────────
+function showAnalysis(humanLost){
+  const pColor='w';
+  const pMoves=game.log.filter(m=>m.color===pColor);
+  const captures=pMoves.filter(m=>m.cap);
+  const checks=pMoves.filter(m=>m.check);
+  const lost=game.cap.b; // pieces black captured FROM white
+
+  const mistakes=[];
+  for(let i=0;i<game.log.length-1;i++){
+    const mv=game.log[i],nxt=game.log[i+1];
+    if(mv.color!==pColor||!nxt?.cap)continue;
+    const val=PV[game.type(nxt.cap)]||0;
+    if(val>=100){
+      const pName={P:'Pawn',N:'Knight',B:'Bishop',R:'Rook',Q:'Queen'}[game.type(nxt.cap)]||'piece';
+      mistakes.push({
+        moveNum:mv.moveNum,move:mv.text,pName,val,aiMove:nxt.text,
+        note:`You played ${mv.text}, then the AI replied ${nxt.text} winning your ${pName} (worth ${val}pts).`,
+        sev:val>=500?'blunder':'mistake',
+      });
+    }
+  }
+  const blunders=mistakes.filter(m=>m.sev==='blunder').length;
+
+  const tips=[];
+  if(blunders>=2)tips.push('You had multiple blunders — the biggest factor in the loss. Before each move, ask "Is my piece safe here?" and look for opponent responses.');
+  else if(blunders===1)tips.push(`The key blunder was on move ${mistakes.find(m=>m.sev==='blunder')?.moveNum}. Losing a major piece gave the AI a decisive advantage.`);
+  if(lost.length>captures.length+2)tips.push('You gave away far more material than you won. Try to keep your pieces defended and avoid leaving them hanging.');
+  if(checks.length===0)tips.push('You never put the AI in check. Creating threats forces your opponent to react, giving you more control of the game.');
+  if(pMoves.length<14)tips.push('The game ended quickly. Study the opening: develop your knights and bishops early, control the centre with pawns, and castle to protect your king.');
+  if(!tips.length)tips.push('Solid game overall! The next level is calculating two moves ahead before committing — always visualise your opponent\'s best reply.');
+
+  document.getElementById('aTitle').textContent=humanLost?'You Lost':game.winner?'You Won! 🎉':'Draw 🤝';
+  document.getElementById('aSub').textContent=humanLost?'Here\'s what the AI found in your game — study each mistake to improve.':'Summary of your game.';
+  document.getElementById('sMoves').textContent=pMoves.length;
+  document.getElementById('sMistakes').textContent=mistakes.length;
+  document.getElementById('sBlunders').textContent=blunders;
+  document.getElementById('sCaptures').textContent=captures.length;
+  document.getElementById('sChecks').textContent=checks.length;
+  document.getElementById('sLost').textContent=lost.length;
+
+  const ml=document.getElementById('mistakeList');ml.innerHTML='';
+  if(!mistakes.length){
+    ml.innerHTML='<p style="color:var(--green);font-weight:700;font-size:0.85rem">✓ No major mistakes detected — great play!</p>';
+  }else{
+    mistakes.slice(0,6).forEach(m=>{
+      const d=document.createElement('div');
+      d.className='mistake-row '+m.sev;
+      d.innerHTML=`<div class="mr-head">Move ${m.moveNum}: <code>${m.move}</code><span class="mr-tag">${m.sev}</span></div><div class="mr-note">${m.note}</div>`;
+      ml.appendChild(d);
+    });
+  }
+  document.getElementById('coachTip').textContent=tips[0];
+  document.getElementById('analysisOverlay').classList.add('show');
+}
+function closeAnalysis(){document.getElementById('analysisOverlay').classList.remove('show');}
+
+// ── PUZZLES ───────────────────────────────────────────────────────
+function parseFen(fen){
+  const[placement,turn,castling,ep]=fen.split(' ');
+  const g=new Chess();g.board=Array(64).fill(null);
+  g.turn=turn||'w';
+  g.cas={wK:!!(castling?.includes('K')),wQ:!!(castling?.includes('Q')),bK:!!(castling?.includes('k')),bQ:!!(castling?.includes('q'))};
+  if(ep&&ep!=='-'){const F='abcdefgh';g.ep=(8-parseInt(ep[1]))*8+F.indexOf(ep[0]);}
+  placement.split('/').forEach((rank,row)=>{
+    let col=0;
+    for(const ch of rank){
+      if(/\d/.test(ch)){col+=parseInt(ch);}
+      else{g.board[row*8+col]=(ch===ch.toUpperCase()?'w':'b')+ch.toUpperCase();col++;}
+    }
+  });
+  return g;
+}
+
+function loadPuzzle(idx){
+  pzSolIdx=0;pzSolved=false;selSq=null;legalSqs=[];hintSq=null;lastMove=null;
+  puzzleIdx=(idx+PUZZLES.length)%PUZZLES.length;
+  const pz=PUZZLES[puzzleIdx];
+  pzGame=parseFen(pz.fen);
+
+  document.getElementById('pzName').textContent=pz.name;
+  document.getElementById('pzTag').textContent=pz.tag;
+  document.getElementById('pzRating').textContent='★ '+pz.rating;
+  document.getElementById('pzDesc').textContent=pz.desc;
+  setPzFeedback(pz.desc,'info');
+  document.getElementById('pzNext').disabled=true;
+  buildPzProgress(pz);
+
+  flipped=pzGame.turn==='b';
+  buildBoard();
+
+  // Render puzzle position
+  const savedGame=game;game=pzGame;renderBoard();game=savedGame;
+}
+
+function buildPzProgress(pz){
+  const el=document.getElementById('pzProgress');el.innerHTML='';
+  pz.solution.forEach(()=>{const d=document.createElement('div');d.className='pdot';el.appendChild(d);});
+}
+
+function handlePzClick(sq){
+  if(pzSolved)return;
+  const savedGame=game;game=pzGame;
+
+  if(selSq===null){
+    if(game.board[sq]&&game.color(game.board[sq])===game.turn){
+      selSq=sq;legalSqs=game.legalMoves(sq);renderBoard();
+    }
+  }else{
+    if(legalSqs.includes(sq)){
+      const from=selSq;
+      const attempt=sqN(from)+sqN(sq);
+      const pz=PUZZLES[puzzleIdx];
+      const required=pz.solution[pzSolIdx];
+
+      selSq=null;legalSqs=[];
+
+      if(attempt===required.slice(0,4)){
+        // Correct
+        const promo=required.length===5?required[4].toUpperCase():'Q';
+        game.makeMove(from,sq,promo);
+        lastMove={from,to:sq};
+        // Mark progress dot
+        document.querySelectorAll('#pzProgress .pdot')[pzSolIdx]?.classList.add('ok');
+        pzSolIdx++;
+
+        if(pzSolIdx>=pz.solution.length){
+          pzSolved=true;
+          setPzFeedback('✓ Correct! '+pz.explain,'ok');
+          document.getElementById('pzNext').disabled=false;
+        }else{
+          setPzFeedback('✓ Good move! Keep going…','ok');
+          // Play opponent reply automatically
+          setTimeout(()=>{
+            const all=game.allLegal();
+            if(all.length){
+              const m=all[Math.floor(Math.random()*all.length)];
+              game.makeMove(m[0],m[1]);lastMove={from:m[0],to:m[1]};
+            }
+            const sv=game; // already pzGame
+            renderBoard();
+          },500);
+        }
+      }else{
+        // Wrong
+        document.querySelectorAll('#pzProgress .pdot')[pzSolIdx]?.classList.add('bad');
+        setPzFeedback('✗ Not quite. '+pz.desc,'bad');
+        setTimeout(()=>{
+          document.querySelectorAll('#pzProgress .pdot')[pzSolIdx]?.classList.remove('bad');
+          setPzFeedback(pz.desc,'info');
+        },1500);
+      }
+      renderBoard();
+    }else if(game.board[sq]&&game.color(game.board[sq])===game.turn){
+      selSq=sq;legalSqs=game.legalMoves(sq);renderBoard();
+    }else{
+      selSq=null;legalSqs=[];renderBoard();
+    }
+  }
+  game=savedGame;
+}
+
+function setPzFeedback(t,c){const el=document.getElementById('pzFeedback');if(el){el.textContent=t;el.className='pz-feedback '+c;}}
+function nextPuzzle(){loadPuzzle(puzzleIdx+1);}
+function prevPuzzle(){loadPuzzle(puzzleIdx-1);}
+function retryPuzzle(){loadPuzzle(puzzleIdx);}
+function showPuzzleSolution(){
+  const pz=PUZZLES[puzzleIdx];
+  const sol=pz.solution[0];
+  const F='abcdefgh';
+  const fromSq=(8-parseInt(sol[1]))*8+F.indexOf(sol[0]);
+  hintSq=fromSq;
+  setPzFeedback('Solution starts with the highlighted piece. '+pz.explain,'info');
+  const sv=game;game=pzGame;renderBoard();game=sv;
+  setTimeout(()=>{hintSq=null;const sv=game;game=pzGame;renderBoard();game=sv;},2500);
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('gameShell').classList.contains('visible'))return;
+  if(e.key==='Escape'){selSq=null;legalSqs=[];hintSq=null;renderBoard();}
+  if(e.key==='f'||e.key==='F')flipBoard();
+  if(e.key==='h'||e.key==='H')showHint();
+  if(e.key==='r'||e.key==='R')goMenu();
+  if(e.key==='t'||e.key==='T'){
+    const keys=Object.keys(THEMES);
+    const t=keys[(keys.indexOf(currentTheme)+1)%keys.length];
+    setTheme(t);document.getElementById('themeSelect').value=t;
+  }
+});
 </script>
 </body>
 </html>
